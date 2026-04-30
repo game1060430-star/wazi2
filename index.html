@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.2</title>
+    <title>Wazi 管理系統 V23.3</title>
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
         body { background: #f4f7f6; margin: 0; padding: 10px; color: #333; font-size: 14px; }
@@ -32,6 +32,7 @@
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .stat-card { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 8px; text-align: center; }
         .stat-card b { font-size: 15px; color: #764ba2; }
+        .total-row { background: #fff5f5; font-weight: bold; color: #d9534f; }
     </style>
 </head>
 <body>
@@ -170,8 +171,85 @@ function switchTab(id){
 
     if(id==='report') genFullReport();
     if(id==='monthly') loadMonthly();
-    if(id==='daily') loadDaily(); // 確保每次切換回每日記帳都刷新廠商
+    if(id==='daily') loadDaily();
     if(id==='settings') renderSettings();
+}
+
+// 報表：統計
+function genFullReport(){
+    const month = document.getElementById('rMonth').value;
+    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
+    if(!m) { document.getElementById('repArea').innerHTML = "<p style='color:red; text-align:center;'>請先於「月結算」儲存數據。</p>"; return; }
+    
+    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={};
+    for(let i=1; i<=31; i++){
+        const date = month + '-' + String(i).padStart(2,'0');
+        const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
+        if(d){
+            const val = (v)=>parseFloat(v)||0;
+            const cash = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
+            const dayT = cash + val(d.pOnline) + val(d.pScan);
+            if(dayT !== 0) {
+                dayRows += `<tr><td>${i}</td><td>$${Math.round(cash).toLocaleString()}</td><td>$${val(d.pOnline).toLocaleString()}</td><td>$${val(d.pScan).toLocaleString()}</td><td>$${Math.round(dayT).toLocaleString()}</td></tr>`;
+                tCash += cash; tOnline += val(d.pOnline); tScan += val(d.pScan); tDays++;
+            }
+            if(d.vs) for(let k in d.vs){
+                const p=k.split('_'), amt = p.length===3 ? (parseFloat(d.vs[k])*parseFloat(p[2])) : parseFloat(d.vs[k]);
+                vSum[p[0]] = (vSum[p[0]]||0) + amt;
+            }
+        }
+    }
+    const tRev = tCash + tOnline + tScan;
+    const eNet = (m.e110-c.i110) + (m.e220-c.i220) - (m.se110-c.is110) - (m.se220-c.is220);
+    
+    // 計算廠商總計
+    const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
+    const vendorHtml = Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('');
+    
+    // 計算固定支出
+    let tFixed = 0;
+    const fixedRows = [
+        {n:'房租',v:m.rent, raw:`房租`}, {n:'公攤(0.75折)',v:m.pub*0.75, raw:`公攤($${m.pub})`}, {n:'設備',v:m.lease, raw:`設備租賃`},
+        {n:'電費',v:eNet*c.ue, raw:`電(${eNet.toFixed(1)}度)`}, {n:'水費',v:(m.w-c.iw)*c.uw, raw:`水(${m.w-c.iw}度)`},
+        {n:'瓦斯',v:(m.g-c.ig)*c.ug, raw:`瓦斯(${m.g-c.ig}度)`}, {n:'稅金',v:m.taxb*0.05, raw:`稅金`}
+    ].map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.raw}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
+
+    let tStaff = 0;
+    const staffHtml = get('staff').map(s => {
+        const h = m.staff?.[s.n]||0, b = m.bonus?.[s.n]||0, total = (h*s.r) * (1 + b/100);
+        tStaff += total;
+        return `<tr><td>${s.n}</td><td>${h}h</td><td>$${s.r}</td><td>${b}%</td><td>$${Math.round(total).toLocaleString()}</td></tr>`;
+    }).join('');
+
+    document.getElementById('repArea').innerHTML = `
+        <div class="stat-grid">
+            <div class="stat-card">營業天數<br><b>${tDays}</b></div>
+            <div class="stat-card">全月總收入<br><b>$${Math.round(tRev).toLocaleString()}</b></div>
+            <div class="stat-card">廠商總支出<br><b>$${Math.round(tVendor).toLocaleString()}</b></div>
+            <div class="stat-card">固定總支出<br><b>$${Math.round(tFixed).toLocaleString()}</b></div>
+        </div>
+        <h4 class="section-title">📅 每日營收細項</h4>
+        <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}</table>
+        
+        <h4 class="section-title">📦 支出明細</h4>
+        <table>
+            <tr><th colspan="4" style="text-align:left; background:#f0f0f0;">廠商進貨</th><th>金額</th></tr>
+            ${vendorHtml}
+            <tr class="total-row"><td colspan="4" style="text-align:left;">廠商進貨總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr>
+            
+            <tr><th colspan="4" style="text-align:left; background:#f0f0f0; border-top:2px solid #ddd;">固定支出</th><th>金額</th></tr>
+            ${fixedRows}
+            <tr class="total-row"><td colspan="4" style="text-align:left;">固定支出總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr>
+        </table>
+
+        <h4 class="section-title">👥 人事成本</h4>
+        <table>
+            <tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>合計</th></tr>
+            ${staffHtml}
+            <tr class="total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr>
+        </table>
+        
+        <div class="profit-box">本月預計純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>`;
 }
 
 // 每日記帳：抓取廠商
@@ -179,7 +257,7 @@ function loadDaily(){
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
     let html = ""; 
-    const vendors = get('vendors'); // 即時抓取最新廠商清單
+    const vendors = get('vendors');
     vendors.forEach(v => {
         if(v.type==='金額'){ 
             html += `<div class="v-row" style="padding:5px;"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc;"></div>`;
@@ -202,7 +280,6 @@ function saveDaily(){
     alert('✅ 今日數據儲存成功');
 }
 
-// 月結：純儲存與手動更新起始度數
 function saveMonthlyOnly(){
     const m = document.getElementById('mMonth').value, s={}, b={};
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
@@ -237,7 +314,6 @@ function manualReplaceStartDegrees(){
     alert('📍 系統起始度數已同步更新！');
 }
 
-// 修正小數點問題
 function showLiveCalc(type){
     const c = cfg(), cur = parseFloat(document.getElementById('m'+type).value) || 0;
     const startKey = {e110:'i110',e220:'i220',se110:'is110',se220:'is220',w:'iw',g:'ig'}[type];
@@ -245,72 +321,9 @@ function showLiveCalc(type){
     const diff = Math.max(0, cur - start);
     const unitPrice = (type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug));
     const amt = diff * unitPrice;
-    
-    if(document.getElementById('hint_'+type)) {
-        // 使用 toFixed(1) 或 Math.round 避免長串小數點
-        document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} | 預估: $${Math.round(amt)}`;
-    }
+    if(document.getElementById('hint_'+type)) document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} | 預估: $${Math.round(amt)}`;
 }
 
-// 報表：統計
-function genFullReport(){
-    const month = document.getElementById('rMonth').value;
-    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
-    if(!m) { document.getElementById('repArea').innerHTML = "<p style='color:red; text-align:center;'>請先於「月結算」儲存數據。</p>"; return; }
-    
-    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={};
-    for(let i=1; i<=31; i++){
-        const date = month + '-' + String(i).padStart(2,'0');
-        const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
-        if(d){
-            const val = (v)=>parseFloat(v)||0;
-            const cash = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
-            const dayT = cash + val(d.pOnline) + val(d.pScan);
-            if(dayT !== 0) {
-                dayRows += `<tr><td>${i}</td><td>$${Math.round(cash).toLocaleString()}</td><td>$${val(d.pOnline).toLocaleString()}</td><td>$${val(d.pScan).toLocaleString()}</td><td>$${Math.round(dayT).toLocaleString()}</td></tr>`;
-                tCash += cash; tOnline += val(d.pOnline); tScan += val(d.pScan); tDays++;
-            }
-            if(d.vs) for(let k in d.vs){
-                const p=k.split('_'), amt = p.length===3 ? (parseFloat(d.vs[k])*parseFloat(p[2])) : parseFloat(d.vs[k]);
-                vSum[p[0]] = (vSum[p[0]]||0) + amt;
-            }
-        }
-    }
-    const tRev = tCash + tOnline + tScan;
-    const eNet = (m.e110-c.i110) + (m.e220-c.i220) - (m.se110-c.is110) - (m.se220-c.is220);
-    let tFixed = 0;
-    const fixed = [
-        {n:'房租',v:m.rent, raw:`房租`}, {n:'公攤(0.75折)',v:m.pub*0.75, raw:`公攤($${m.pub})`}, {n:'設備',v:m.lease, raw:`設備租賃`},
-        {n:'電費',v:eNet*c.ue, raw:`電(${eNet.toFixed(1)}度)`}, {n:'水費',v:(m.w-c.iw)*c.uw, raw:`水(${m.w-c.iw}度)`},
-        {n:'瓦斯',v:(m.g-c.ig)*c.ug, raw:`瓦斯(${m.g-c.ig}度)`}, {n:'稅金',v:m.taxb*0.05, raw:`稅金`}
-    ].map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.raw}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
-
-    const vendorHtml = Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('');
-    let tStaff = 0;
-    const staffHtml = get('staff').map(s => {
-        const h = m.staff?.[s.n]||0, b = m.bonus?.[s.n]||0, total = (h*s.r) * (1 + b/100);
-        tStaff += total;
-        return `<tr><td>${s.n}</td><td>${h}h</td><td>$${s.r}</td><td>${b}%</td><td>$${Math.round(total).toLocaleString()}</td></tr>`;
-    }).join('');
-
-    document.getElementById('repArea').innerHTML = `
-        <div class="stat-grid">
-            <div class="stat-card">營業天數<br><b>${tDays}</b></div>
-            <div class="stat-card">現金總計<br><b>$${Math.round(tCash).toLocaleString()}</b></div>
-            <div class="stat-card">網路總計<br><b>$${Math.round(tOnline).toLocaleString()}</b></div>
-            <div class="stat-card">掃碼總計<br><b>$${Math.round(tScan).toLocaleString()}</b></div>
-            <div class="stat-card">全月總收入<br><b>$${Math.round(tRev).toLocaleString()}</b></div>
-        </div>
-        <h4 class="section-title">📅 每日細項</h4>
-        <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}</table>
-        <h4 class="section-title">📦 廠商與成本</h4>
-        <table>${vendorHtml}${fixed}</table>
-        <h4 class="section-title">👥 人事成本</h4>
-        <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>合計</th></tr>${staffHtml}</table>
-        <div class="profit-box">本月預計純利：$${Math.round(tRev - Object.values(vSum).reduce((a,b)=>a+b,0) - tFixed - tStaff).toLocaleString()}</div>`;
-}
-
-// 基礎功能
 function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
@@ -333,7 +346,6 @@ function saveSettings(){
     alert('設定已儲存');
 }
 
-// 對帳中心 (省略部分與 V23.1 相同，確保邏輯完整即可)
 function renderRecon(){
     const vs = get('vendors');
     let html = ""; vs.forEach(v => { html += `<label style="display:block; padding:8px; border-bottom:1px solid #eee;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="calcRecon()"> ${v.name}</label>`; });
