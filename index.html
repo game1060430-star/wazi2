@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.4</title>
+    <title>Wazi 管理系統 V23.5</title>
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
         body { background: #f4f7f6; margin: 0; padding: 10px; color: #333; font-size: 14px; }
@@ -32,7 +32,9 @@
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .stat-card { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 8px; text-align: center; }
         .stat-card b { font-size: 15px; color: #764ba2; }
-        .total-row { background: #fff5f5; font-weight: bold; color: #d9534f; }
+        .total-row { background: #f0f0f0; font-weight: bold; color: #333; }
+        .grand-total-row { background: #fff5f5; font-weight: bold; color: #d9534f; }
+        #rMonth { font-size: 22px; padding: 10px; height: 60px; }
     </style>
 </head>
 <body>
@@ -171,7 +173,6 @@ function switchTab(id){
     if(id==='settings') renderSettings();
 }
 
-// 報表：統計
 function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}, e110:0, e220:0, se110:0, se220:0, w:0, g:0, pub:0, rent:0, taxb:0, lease:0};
@@ -183,7 +184,8 @@ function genFullReport(){
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         if(d){
             const val = (v)=>parseFloat(v)||0;
-            const cash = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
+            const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
+            const cash = cashOnly > 0 ? (cashOnly - c.petty) : 0;
             const dayT = cash + val(d.pOnline) + val(d.pScan);
             if(dayT !== 0) {
                 dayRows += `<tr><td>${i}</td><td>$${Math.round(cash).toLocaleString()}</td><td>$${val(d.pOnline).toLocaleString()}</td><td>$${val(d.pScan).toLocaleString()}</td><td>$${Math.round(dayT).toLocaleString()}</td></tr>`;
@@ -196,9 +198,10 @@ function genFullReport(){
         }
     }
     const tRev = tCash + tOnline + tScan;
-    const tDigital = tOnline + tScan; // 網路+掃碼
+    const tDigital = tOnline + tScan;
+    const avgRev = tDays > 0 ? (tRev / tDays) : 0;
     
-    // 計算固定支出
+    // 固定支出
     const eNet = (m.e110||c.i110)-c.i110 + (m.e220||c.i220)-c.i220 - ((m.se110||c.is110)-c.is110) - ((m.se220||c.is220)-c.is220);
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
     let tFixed = 0;
@@ -217,37 +220,44 @@ function genFullReport(){
 
     document.getElementById('repArea').innerHTML = `
         <div class="stat-grid">
-            <div class="stat-card">現金總計<br><b>$${Math.round(tCash).toLocaleString()}</b></div>
-            <div class="stat-card">非現金總計<br><b>$${Math.round(tDigital).toLocaleString()}</b></div>
-            <div class="stat-card">全月總營收<br><b style="color:#d9534f;">$${Math.round(tRev).toLocaleString()}</b></div>
-            <div class="stat-card">營業天數<br><b>${tDays}</b></div>
+            <div class="stat-card">本月營業天數<br><b>${tDays}</b></div>
+            <div class="stat-card">平均日營業額<br><b>$${Math.round(avgRev).toLocaleString()}</b></div>
         </div>
         
         <h4 class="section-title">📅 每日營收細項</h4>
-        <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}</table>
+        <table>
+            <tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>
+            ${dayRows}
+            <tr class="total-row">
+                <td>總計</td>
+                <td>$${Math.round(tCash).toLocaleString()}</td>
+                <td colspan="2">$${Math.round(tDigital).toLocaleString()}</td>
+                <td style="color:#d9534f;">$${Math.round(tRev).toLocaleString()}</td>
+            </tr>
+        </table>
         
         <h4 class="section-title">📦 支出明細</h4>
         <table>
             <tr><th colspan="4" style="text-align:left; background:#f0f0f0;">廠商進貨</th><th>金額</th></tr>
             ${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('')}
-            <tr class="total-row"><td colspan="4" style="text-align:left;">廠商進貨總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr>
+            <tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商進貨總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr>
             
             <tr><th colspan="4" style="text-align:left; background:#f0f0f0; border-top:2px solid #ddd;">固定支出</th><th>金額</th></tr>
             ${fixedRows}
-            <tr class="total-row"><td colspan="4" style="text-align:left;">固定支出總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr>
+            <tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定支出總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr>
         </table>
 
         <h4 class="section-title">👥 人事成本</h4>
         <table>
             <tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>合計</th></tr>
             ${staffHtml}
-            <tr class="total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr>
+            <tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr>
         </table>
         
-        <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>`;
+        <div class="profit-box">本月預計純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>`;
 }
 
-// 其餘功能維持 V23.3 (含 23.2 修正)
+// 以下為系統核心邏輯，保持不變
 function loadDaily(){
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
