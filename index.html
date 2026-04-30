@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 早餐店管理系統 V21.9</title>
+    <title>Wazi 早餐店管理系統 V22.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -34,10 +34,9 @@
         #repArea { background: white; padding: 15px; border-radius: 8px; }
         .total-row { background: #fcf8e3; font-weight: bold; }
         .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
-        
-        /* 對帳中心勾選樣式 */
         .vendor-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; }
         .vendor-item input { margin-right: 8px; transform: scale(1.2); }
+        .summary-mini { background: #fdfdfd; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; padding: 8px; }
     </style>
 </head>
 <body onload="initApp()">
@@ -81,13 +80,12 @@
             <div class="card" id="reconVendorList" style="width: 150px; font-size:12px; max-height: 450px; overflow-y: auto; padding:5px;"></div>
             <div id="reconDetailArea" style="flex: 1;"></div>
         </div>
-        <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6; font-size: 16px; border: 1px solid #ffe58f;"></div>
+        <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6; font-size: 14px; border: 1px solid #ffe58f;"></div>
         <div id="reconAction" class="card" style="display:none;">
-            <h4 style="margin:0 0 5px;">➕ 補錄/修改當日總額</h4>
-            <p style="font-size:11px; color:gray;">(會直接修改該日期之總金額數據)</p>
+            <h4 style="margin:0 0 5px;">➕ 補錄/修改金額</h4>
             <div class="grid">
                 <input type="number" id="addDay" placeholder="日期">
-                <input type="number" id="addAmt" placeholder="金額">
+                <input type="number" id="addAmt" placeholder="總額">
             </div>
             <button class="btn btn-primary" onclick="manualUpdateVendorTotal()">儲存修改</button>
         </div>
@@ -170,7 +168,7 @@ function initApp(){
     loadDaily();
 }
 
-/* --- 對帳中心恢復 --- */
+/* --- 對帳中心修正核心：分列顯示各廠商總額 --- */
 function renderRecon(){
     const vs = get('vendors');
     let html = "";
@@ -178,7 +176,7 @@ function renderRecon(){
         html += `<label class="vendor-item"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="calcRecon()"> ${v.name}</label>`;
     });
     document.getElementById('reconVendorList').innerHTML = html;
-    document.getElementById('reconDetailArea').innerHTML = "請勾選廠商進行統計";
+    document.getElementById('reconDetailArea').innerHTML = "請勾選廠商";
     document.getElementById('reconSummaryArea').style.display = 'none';
     document.getElementById('reconAction').style.display = 'none';
 }
@@ -193,39 +191,59 @@ function calcRecon(){
         return;
     }
 
-    let names = Array.from(chks).map(c => c.value);
+    let selectedNames = Array.from(chks).map(c => c.value);
+    let vendorTotals = {}; // 存各別廠商總計
+    let dayDetails = {};   // 存每日合計
     let totalAll = 0;
-    let dayData = {}; // 用於統計每日明細
+
+    selectedNames.forEach(name => vendorTotals[name] = 0);
 
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         if(d && d.vs){
-            let daySum = 0;
-            for(let k in d.vs){
-                let match = names.some(n => k === n || k.startsWith(n + '_'));
-                if(match){
-                    const p = k.split('_');
-                    const val = parseFloat(d.vs[k]) || 0;
-                    daySum += (p.length === 3 ? val * parseFloat(p[2]) : val);
+            let dayTotal = 0;
+            for(let key in d.vs){
+                // 檢查此 key 是否屬於任何一個勾選的廠商
+                let owner = selectedNames.find(n => key === n || key.startsWith(n + '_'));
+                if(owner){
+                    const p = key.split('_');
+                    const val = parseFloat(d.vs[key]) || 0;
+                    const amt = (p.length === 3 ? val * parseFloat(p[2]) : val);
+                    vendorTotals[owner] += amt;
+                    dayTotal += amt;
+                    totalAll += amt;
                 }
             }
-            if(daySum > 0) { dayData[i] = daySum; totalAll += daySum; }
+            if(dayTotal > 0) dayDetails[i] = dayTotal;
         }
     }
 
-    let listHtml = `<table><tr><th>日期</th><th>所選廠商合計</th></tr>`;
-    Object.keys(dayData).forEach(day => {
-        listHtml += `<tr><td>${day}號</td><td>$${Math.round(dayData[day]).toLocaleString()}</td></tr>`;
+    // 生成右側詳情：各別廠商統計 + 每日明細
+    let html = `<div class="summary-mini"><b>廠商個別統計：</b><ul style="margin:5px 0; padding-left:20px;">`;
+    selectedNames.forEach(name => {
+        html += `<li>${name}: $${Math.round(vendorTotals[name]).toLocaleString()}</li>`;
     });
-    listHtml += `</table>`;
+    html += `</ul></div>`;
     
-    document.getElementById('reconDetailArea').innerHTML = listHtml;
+    html += `<table><tr><th>日期</th><th>所選廠商合計</th></tr>`;
+    Object.keys(dayDetails).forEach(day => {
+        html += `<tr><td>${day}號</td><td>$${Math.round(dayDetails[day]).toLocaleString()}</td></tr>`;
+    });
+    html += `</table>`;
+    
+    document.getElementById('reconDetailArea').innerHTML = html;
+    
+    // 下方總計顯示
     document.getElementById('reconSummaryArea').style.display = 'block';
-    document.getElementById('reconSummaryArea').innerHTML = `<b>勾選統計</b><br>總計金額：<span style="color:red; font-size:20px;">$${Math.round(totalAll).toLocaleString()}</span>`;
+    document.getElementById('reconSummaryArea').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>共選 ${selectedNames.length} 家廠商</span>
+            <span>總計：<b style="color:red; font-size:18px;">$${Math.round(totalAll).toLocaleString()}</b></span>
+        </div>`;
     
-    // 如果只勾一個，顯示補錄按鈕
-    document.getElementById('reconAction').style.display = (chks.length === 1) ? 'block' : 'none';
+    // 只有勾選單一廠商時，才顯示「補錄修改」按鈕
+    document.getElementById('reconAction').style.display = (selectedNames.length === 1) ? 'block' : 'none';
 }
 
 function manualUpdateVendorTotal(){
@@ -233,18 +251,17 @@ function manualUpdateVendorTotal(){
     const amt = document.getElementById('addAmt').value;
     const vn = document.querySelector('.recon-chk:checked').value;
     if(!day || !amt) return alert('請輸入完整');
-    const month = document.getElementById('reconMonth').value;
-    const date = month + '-' + String(day).padStart(2,'0');
+    const month = document.getElementById('reconMonth').value, date = month + '-' + String(day).padStart(2,'0');
     const d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     if(!d.vs) d.vs = {};
     for(let k in d.vs) { if(k.startsWith(vn+'_')) delete d.vs[k]; }
     d.vs[vn] = parseFloat(amt);
     set('d_'+date, d);
     calcRecon();
-    alert('儲存成功');
+    alert('已更新');
 }
 
-/* --- 報表中心恢復 --- */
+/* --- 報表中心 (含天數、日均) --- */
 function genFullReport(){
     const month = document.getElementById('rMonth').value, m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
     if(!m) { document.getElementById('repArea').style.display='block'; document.getElementById('repArea').innerHTML = "<div class='card'>請先完成月結算存檔</div>"; return; }
@@ -267,31 +284,16 @@ function genFullReport(){
             }
         }
     }
-
-    let vendorDetailHtml = "";
-    Object.keys(vSum).forEach(vn => vendorDetailHtml += `<tr><td>${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`);
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
-
     const eNet = ((m.e110||c.i110)-c.i110)+((m.e220||c.i220)-c.i220)-((m.se110||c.is110)-c.is110)-((m.se220||c.is220)-c.is220);
-    const fixedItems = [
-        {n:'店面租金',v:m.rent}, {n:'公攤費(0.75折)',v:m.pub*0.75}, {n:'設備租賃',v:m.lease},
-        {n:`電費(${Math.round(eNet)}度)`,v:eNet*c.ue}, {n:`水費`,v:((m.w||c.iw)-c.iw)*c.uw}, 
-        {n:`瓦斯`,v:((m.g||c.ig)-c.ig)*c.ug}, {n:'稅金(5%)',v:m.taxb*0.05}
-    ];
-    let fixedDetailHtml = fixedItems.map(item => `<tr><td>${item.n}</td><td>$${Math.round(item.v||0).toLocaleString()}</td></tr>`).join('');
+    const fixedItems = [{n:'店面租金',v:m.rent}, {n:'公攤費(0.75折)',v:m.pub*0.75}, {n:'設備租賃',v:m.lease}, {n:`電費(${Math.round(eNet)}度)`,v:eNet*c.ue}, {n:`水費`,v:((m.w||c.iw)-c.iw)*c.uw}, {n:`瓦斯`,v:((m.g||c.ig)-c.ig)*c.ug}, {n:'稅金(5%)',v:m.taxb*0.05}];
     const tFixed = fixedItems.reduce((a,b)=>a+(b.v||0), 0);
-
-    let staffDetailHtml = "";
     let tStaff = 0;
-    get('staff').forEach(s => {
-        const hours = m.staff?.[s.n]||0;
-        const bonusPct = m.bonus?.[s.n]||0;
-        const baseSalary = hours * s.r;
-        const bonusAmt = baseSalary * (bonusPct / 100);
-        const totalSalary = baseSalary + bonusAmt;
-        staffDetailHtml += `<tr><td>${s.n}</td><td>${hours} hr</td><td>$${s.r}/hr</td><td>${bonusPct}%</td><td>$${Math.round(totalSalary).toLocaleString()}</td></tr>`;
-        tStaff += totalSalary;
-    });
+    const staffHtml = get('staff').map(s => {
+        const h = m.staff?.[s.n]||0, b = m.bonus?.[s.n]||0, total = (h*s.r) + (h*s.r*(b/100));
+        tStaff += total;
+        return `<tr><td>${s.n}</td><td>${h}h</td><td>$${s.r}</td><td>${b}%</td><td>$${Math.round(total).toLocaleString()}</td></tr>`;
+    }).join('');
 
     const totalRev = tCash + tOnline + tScan;
 
@@ -302,21 +304,18 @@ function genFullReport(){
             <h3 class="section-title">📅 每日明細</h3>
             <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}
             <tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td>$${Math.round(tOnline).toLocaleString()}</td><td>$${Math.round(tScan).toLocaleString()}</td><td>$${Math.round(totalRev).toLocaleString()}</td></tr></table>
-            <div style="text-align:right; margin:8px 0; font-weight:bold; font-size:13px; color:#555;">
-                計算天數：${tDays} 天 | 日均營業額：$${tDays > 0 ? Math.round(totalRev/tDays).toLocaleString() : 0}
-            </div>
+            <div style="text-align:right; margin:8px 0; font-weight:bold; font-size:12px;">計算天數：${tDays} 天 | 日均營業額：$${tDays>0?Math.round(totalRev/tDays).toLocaleString():0}</div>
             <h3 class="section-title">📦 廠商支出</h3>
-            <table><tr><th>廠商</th><th>金額</th></tr>${vendorDetailHtml}<tr class="total-row"><td>總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
+            <table><tr><th>廠商</th><th>金額</th></tr>${Object.keys(vSum).map(vn=>`<tr><td>${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('')}<tr class="total-row"><td>總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
             <h3 class="section-title">🏢 固定支出</h3>
-            <table><tr><th>項目</th><th>金額</th></tr>${fixedDetailHtml}<tr class="total-row"><td>總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
+            <table><tr><th>項目</th><th>金額</th></tr>${fixedItems.map(it=>`<tr><td>${it.n}</td><td>$${Math.round(it.v||0).toLocaleString()}</td></tr>`).join('')}<tr class="total-row"><td>總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
             <h3 class="section-title">👥 人事明細</h3>
-            <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金%</th><th>薪資</th></tr>${staffDetailHtml}
-            <tr class="total-row"><td colspan="4">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table>
+            <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>薪資</th></tr>${staffHtml}<tr class="total-row"><td colspan="4">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table>
             <div class="profit-box">本月純利：$${Math.round(totalRev - tVendor - tFixed - tStaff).toLocaleString()}</div>
         </div>`;
 }
 
-// 其餘函數 logic 完全不動
+// 通用函數邏輯保持不變
 async function exportPDF(){
     const month = document.getElementById('rMonth').value, m = JSON.parse(localStorage.getItem(KEY+'m_'+month));
     if(!m) return alert('無數據');
@@ -325,19 +324,16 @@ async function exportPDF(){
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
     pdf.save(`Wazi_${month}.pdf`);
     const c = cfg(); c.i110=m.e110; c.i220=m.e220; c.is110=m.se110; c.is220=m.se220; c.iw=m.w; c.ig=m.g; set('cfg',c);
-    alert('PDF 已下載');
 }
 function loadDaily(){
-    const date = document.getElementById('logDate').value;
-    const d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
+    const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
     let html = "";
     get('vendors').forEach(v => {
         if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}"></div>`;
         } else { (v.items||[]).forEach(it => { const key = v.name+'_'+it.n+'_'+it.p; html += `<div class="v-row"><b>${v.name}-${it.n}</b><input type="number" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}"></div>`; }); }
     });
-    document.getElementById('vDailyArea').innerHTML = html;
-    calcDaily();
+    document.getElementById('vDailyArea').innerHTML = html; calcDaily();
 }
 function saveDaily(){
     const date = document.getElementById('logDate').value, vs = {};
@@ -372,8 +368,7 @@ function switchTab(id){
 function showLiveCalc(type){
     const c = cfg(); const cur = parseFloat(document.getElementById('m'+type).value) || 0;
     const start = c[{e110:'i110',e220:'i220',se110:'is110',se220:'is220',w:'iw',g:'ig'}[type]] || 0;
-    const diff = Math.max(0, cur - start);
-    const amt = diff * {e110:c.ue,e220:c.ue,se110:c.ue,se220:c.ue,w:c.uw,g:c.ug}[type];
+    const diff = Math.max(0, cur-start), amt = diff * {e110:c.ue,e220:c.ue,se110:c.ue,se220:c.ue,w:c.uw,g:c.ug}[type];
     document.getElementById('hint_'+type).innerText = `用量: ${diff} | 金額: $${Math.round(amt)}`;
 }
 function calcDaily(){
