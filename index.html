@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 旗艦管理系統 18.0</title>
+    <title>Wazi 旗艦管理系統 19.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -23,13 +23,15 @@
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; }
         .btn-success { background: #28a745; color: white; }
         .btn-primary { background: #007bff; color: white; }
-        .btn-danger { background: #dc3545; color: white; padding: 3px 8px; font-size: 11px; border-radius: 4px; }
+        .btn-danger { background: #dc3545; color: white; padding: 4px 8px; font-size: 11px; border-radius: 4px; border:none; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         table th, table td { border: 1px solid #eee; padding: 8px; text-align: center; }
         .section-title { border-left: 4px solid #764ba2; padding-left: 8px; margin: 15px 0 10px; font-size: 15px; font-weight: bold; background: #f9f0ff; padding: 5px; }
-        .v-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-        .v-row b { font-size: 14px; flex: 1; }
-        .v-row input { width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+        /* 廠商兩兩並排 */
+        #vDailyArea { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .v-row { display: flex; align-items: center; justify-content: space-between; padding: 6px; background: #fdfdfd; border: 1px solid #eee; border-radius: 6px; }
+        .v-row b { font-size: 12px; flex: 1; }
+        .v-row input { width: 65px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -63,18 +65,26 @@
             </div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
-        <h4 class="section-title">📦 廠商叫貨 (輸入數量/金額)</h4>
-        <div id="vDailyArea" class="card"></div>
-        <button class="btn btn-success" onclick="saveDaily()">✅ 儲存今日數據</button>
+        <h4 class="section-title">📦 廠商進貨</h4>
+        <div id="vDailyArea"></div>
+        <button class="btn btn-success" style="margin-top:15px;" onclick="saveDaily()">✅ 儲存今日數據</button>
     </div>
 
     <div id="recon" class="tab-content">
         <div class="card"><input type="month" id="reconMonth" onchange="renderRecon()"></div>
         <div style="display: flex; gap: 10px;">
-            <div class="card" id="reconVendorList" style="width: 120px;"></div>
+            <div class="card" id="reconVendorList" style="width: 120px; font-size:12px;"></div>
             <div id="reconDetailArea" style="flex: 1;"></div>
         </div>
         <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6;"></div>
+        <div id="reconAction" class="card" style="display:none;">
+            <h4 style="margin:0 0 5px;">➕ 補錄數據</h4>
+            <div class="grid">
+                <input type="number" id="addDay" placeholder="日期(1-31)">
+                <input type="number" id="addAmt" placeholder="金額/數量">
+            </div>
+            <button class="btn btn-primary" onclick="manualAddVendorData()">新增此筆到勾選廠商</button>
+        </div>
     </div>
 
     <div id="report" class="tab-content">
@@ -95,12 +105,12 @@
                 <div class="form-group"><label>水費抄表</label><input type="number" id="mw"></div>
                 <div class="form-group"><label>瓦斯抄表</label><input type="number" id="mg"></div>
                 <div class="form-group"><label>租金</label><input type="number" id="mrent"></div>
-                <div class="form-group"><label>公攤費</label><input type="number" id="mpub"></div>
+                <div class="form-group"><label>公攤費(會打75折)</label><input type="number" id="mpub"></div>
                 <div class="form-group"><label>設備租賃</label><input type="number" id="mlease"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" id="mtaxb"></div>
             </div>
             <div id="mStaffArea"></div>
-            <button class="btn btn-success" onclick="saveMonthlyAndGo()">🚀 送出並同步報表</button>
+            <button class="btn btn-success" onclick="saveMonthlyAndGo()">🚀 送出並產生報表</button>
         </div>
     </div>
 
@@ -131,13 +141,11 @@
         <button class="btn btn-success" onclick="saveSettings()">💾 儲存設定</button>
     </div>
 
-    <div id="data" class="tab-content">
-        <div class="card"><button class="btn btn-primary" onclick="backupData()">📥 備份</button><button class="btn btn-danger" onclick="clearAllData()">⚠️ 清空數據</button></div>
-    </div>
+    <div id="data" class="tab-content"><div class="card"><button class="btn btn-primary" onclick="backupData()">📥 備份</button><button class="btn btn-danger" onclick="clearAllData()">⚠️ 清空數據</button></div></div>
 </div>
 
 <script>
-const KEY = "w18_";
+const KEY = "w19_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
@@ -173,16 +181,14 @@ function loadDaily(){
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
     const vendors = get('vendors');
     document.getElementById('vDailyArea').innerHTML = vendors.map(v => {
-        let rows = "";
         if(v.type==='金額'){
-            rows = `<div class="v-row"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}"></div>`;
+            return `<div class="v-row"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}"></div>`;
         } else {
-            rows = (v.items||[]).map(it => {
+            return (v.items||[]).map(it => {
                 const key = v.name+'_'+it.n+'_'+it.p;
-                return `<div class="v-row"><span>${v.name}-${it.n}</span><input type="number" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}"></div>`;
+                return `<div class="v-row"><b>${v.name}-${it.n}</b><input type="number" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}"></div>`;
             }).join('');
         }
-        return rows;
     }).join('');
     calcDaily();
 }
@@ -193,59 +199,69 @@ function saveDaily(){
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     const data = { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs };
-    localStorage.setItem(KEY+'d_'+date, JSON.stringify(data)); alert('記帳成功');
+    localStorage.setItem(KEY+'d_'+date, JSON.stringify(data)); alert('儲存完成');
 }
 
-// 2. 對帳中心 (精簡版：只列出日期與金額)
+// 2. 對帳中心 (可增刪修)
 function renderRecon(){
     const vendors = get('vendors');
-    document.getElementById('reconVendorList').innerHTML = vendors.map(v=>`<div style="margin-bottom:10px;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="updateRecon()"> ${v.name}</div>`).join('');
+    document.getElementById('reconVendorList').innerHTML = vendors.map(v=>`<div style="margin-bottom:8px;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="updateRecon()"> ${v.name}</div>`).join('');
     updateRecon();
 }
 function updateRecon(){
     const month = document.getElementById('reconMonth').value, selected = Array.from(document.querySelectorAll('.recon-chk:checked')).map(el=>el.value);
-    const detailArea = document.getElementById('reconDetailArea'), summaryArea = document.getElementById('reconSummaryArea');
-    if(!selected.length){ detailArea.innerHTML='<div class="card">請勾選廠商</div>'; summaryArea.style.display='none'; return; }
+    const detailArea = document.getElementById('reconDetailArea'), summaryArea = document.getElementById('reconSummaryArea'), actionArea = document.getElementById('reconAction');
+    if(!selected.length){ detailArea.innerHTML='<div class="card">請勾選廠商</div>'; summaryArea.style.display='none'; actionArea.style.display='none'; return; }
+    actionArea.style.display='block';
     let detailHtml="", sumMap={}, gTotal=0;
     selected.forEach(vn=>{
         sumMap[vn]=0; let rows="";
         for(let i=1;i<=31;i++){
             const date = month+'-'+String(i).padStart(2,'0'), d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
-            if(d && d.vs){
-                let dayTotal = 0;
-                for(let k in d.vs){
-                    if(k.startsWith(vn)){
-                        const val=parseFloat(d.vs[k])||0, p=k.split('_'), amt = p.length===3 ? (val*parseFloat(p[2])) : val;
-                        dayTotal += amt;
-                    }
+            if(d && d.vs) for(let k in d.vs){
+                if(k.startsWith(vn)){
+                    const val=parseFloat(d.vs[k])||0, p=k.split('_'), amt = p.length===3 ? (val*parseFloat(p[2])) : val;
+                    if(val>0){ rows+=`<tr><td>${i}號</td><td><input type="number" style="width:50px" value="${val}" onchange="qU('${date}','${k}',this.value)"></td><td>$${Math.round(amt)}</td><td><button class="btn-danger" onclick="qD('${date}','${k}')">刪</button></td></tr>`; sumMap[vn]+=amt; }
                 }
-                if(dayTotal>0){ rows+=`<tr><td>${i}號</td><td>$${Math.round(dayTotal).toLocaleString()}</td></tr>`; sumMap[vn]+=dayTotal; }
             }
         }
-        detailHtml+=`<div class="card"><b>${vn}</b><table>${rows||'<tr><td>無叫貨</td></tr>'}</table></div>`;
+        detailHtml+=`<div class="card"><b>${vn}</b><table>${rows||'<tr><td colspan="4">無數據</td></tr>'}</table></div>`;
         gTotal+=sumMap[vn];
     });
     detailArea.innerHTML=detailHtml; summaryArea.style.display='block';
-    summaryArea.innerHTML=`<b>月統計</b><table>${Object.keys(sumMap).map(k=>`<tr><td>${k}</td><td>$${Math.round(sumMap[k]).toLocaleString()}</td></tr>`).join('')}<tr style="background:#ddd;font-weight:bold;"><td>總計</td><td>$${Math.round(gTotal).toLocaleString()}</td></tr></table>`;
+    summaryArea.innerHTML=`<b>合計</b><table>${Object.keys(sumMap).map(k=>`<tr><td>${k}</td><td>$${Math.round(sumMap[k]).toLocaleString()}</td></tr>`).join('')}<tr style="background:#ddd;font-weight:bold;"><td>總計</td><td>$${Math.round(gTotal).toLocaleString()}</td></tr></table>`;
+}
+function qU(d,k,v){ const data=JSON.parse(localStorage.getItem(KEY+'d_'+d)); data.vs[k]=parseFloat(v); localStorage.setItem(KEY+'d_'+d, JSON.stringify(data)); updateRecon(); }
+function qD(d,k){ if(confirm('刪除此筆?')){ const data=JSON.parse(localStorage.getItem(KEY+'d_'+d)); delete data.vs[k]; localStorage.setItem(KEY+'d_'+d, JSON.stringify(data)); updateRecon(); } }
+function manualAddVendorData(){
+    const vn = document.querySelector('.recon-chk:checked')?.value;
+    const day = document.getElementById('addDay').value, amt = document.getElementById('addAmt').value;
+    if(!vn || !day || !amt) return alert('請填寫完整並勾選一個廠商');
+    const date = document.getElementById('reconMonth').value + '-' + day.padStart(2,'0');
+    let data = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
+    data.vs[vn] = parseFloat(amt);
+    localStorage.setItem(KEY+'d_'+date, JSON.stringify(data)); updateRecon();
 }
 
-// 3. 報表中心 (核心同步修復)
+// 3. 報表中心 (詳盡營收與公攤75折)
 function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+month));
     const c = cfg();
-    if(!m) { document.getElementById('repArea').innerHTML = `<div class="card">請先至「月結算」分頁送出資料</div>`; return; }
+    if(!m) { document.getElementById('repArea').innerHTML = "請先完成該月「月結算」"; return; }
 
-    let tCashAll = 0, tPayAll = 0, tDays = 0, vSum = {};
+    let dayRows="", tCash=0, tE=0, tDays=0, vSum={};
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         if(d){
             const val = (v)=>parseFloat(v)||0;
-            tCashAll += (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
-            tPayAll += val(d.pOnline) + val(d.pScan); tDays++;
+            const cRaw = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
+            const eRaw = val(d.pOnline) + val(d.pScan);
+            dayRows += `<tr><td>${i}</td><td>$${Math.round(cRaw).toLocaleString()}</td><td>$${val(d.pOnline)}</td><td>$${val(d.pScan)}</td><td>$${Math.round(cRaw+eRaw).toLocaleString()}</td></tr>`;
+            tCash += cRaw; tE += eRaw; tDays++;
             if(d.vs) for(let k in d.vs){
-                const p = k.split('_'), amt = p.length===3 ? (val(d.vs[k])*parseFloat(p[2])) : val(d.vs[k]);
+                const p=k.split('_'), amt = p.length===3 ? (val(d.vs[k])*parseFloat(p[2])) : val(d.vs[k]);
                 vSum[p[0]] = (vSum[p[0]]||0) + amt;
             }
         }
@@ -254,63 +270,66 @@ function genFullReport(){
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
     const eUse = ((m.e110||c.i110)-c.i110)+((m.e220||c.i220)-c.i220)-((m.se110||c.is110)-c.is110)-((m.se220||c.is220)-c.is220);
     const fixedItems = [
-        {n:'店面租金', v:m.rent||0}, {n:'大樓公攤', v:m.pub||0}, {n:'設備租賃', v:m.lease||0},
+        {n:'店面租金', v:m.rent||0}, {n:'公攤費(×0.75)', v:(m.pub||0)*0.75}, {n:'設備租賃', v:m.lease||0},
         {n:`電費(${Math.round(eUse)}度)`, v:eUse*c.ue}, {n:'水費', v:((m.w||c.iw)-c.iw)*c.uw},
         {n:'瓦斯費', v:((m.g||c.ig)-c.ig)*c.ug}, {n:'預估營業稅', v:(m.taxb||0)*0.05}
     ];
     const tFixed = fixedItems.reduce((a,b)=>a+b.v, 0);
     const tStaff = get('staff').reduce((sum,s)=>sum + ((m.staff?.[s.n]||0)*s.r) + (m.bonus?.[s.n]||0), 0);
-    const tRev = tCashAll + tPayAll;
 
-    document.getElementById('repArea').style.display = 'block';
+    document.getElementById('repArea').style.display='block';
     document.getElementById('repArea').innerHTML = `
         <h3 style="text-align:center;">Wazi ${month} 營運報表</h3>
-        <div class="section-title">💰 營收統計</div>
-        <table><tr><td>總營收</td><td>$${Math.round(tRev).toLocaleString()}</td></tr><tr><td>均日營收 (${tDays}天)</td><td>$${Math.round(tRev/tDays).toLocaleString()}</td></tr></table>
-        <div class="section-title">📦 廠商月帳</div>
-        <table><tr><th>廠商</th><th>金額</th></tr>${Object.keys(vSum).map(vn=>`<tr><td>${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('')}<tr><td style="font-weight:bold;">廠商合計</td><td style="font-weight:bold;">$${Math.round(tVendor).toLocaleString()}</td></tr></table>
+        <div class="section-title">📅 每日營收明細表</div>
+        <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總計</th></tr>${dayRows}</table>
+        <div class="section-title">💰 營收統計匯總</div>
+        <table>
+            <tr><td>現金總收入</td><td>$${Math.round(tCash).toLocaleString()}</td></tr>
+            <tr><td>電子支付總額 (網路+掃碼)</td><td>$${Math.round(tE).toLocaleString()}</td></tr>
+            <tr style="font-weight:bold; background:#eee;"><td>本月總營收</td><td>$${Math.round(tCash+tE).toLocaleString()}</td></tr>
+            <tr><td>工作天數 / 日均營業額</td><td>${tDays} 天 / $${Math.round((tCash+tE)/tDays).toLocaleString()}</td></tr>
+        </table>
+        <div class="section-title">📦 廠商支出總覽</div>
+        <table>${Object.keys(vSum).map(vn=>`<tr><td>${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('')}<tr><td style="font-weight:bold;">廠商合計</td><td style="font-weight:bold;">$${Math.round(tVendor).toLocaleString()}</td></tr></table>
         <div class="section-title">⚡ 固定與能源支出</div>
-        <table><tr><th>項目</th><th>細目金額</th></tr>${fixedItems.map(f=>`<tr><td>${f.n}</td><td>$${Math.round(f.v).toLocaleString()}</td></tr>`).join('')}<tr><td style="font-weight:bold;">固定合計</td><td style="font-weight:bold;">$${Math.round(tFixed).toLocaleString()}</td></tr></table>
-        <div class="section-title">👥 人事成本：$${Math.round(tStaff).toLocaleString()}</div>
-        <div style="font-size:24px; text-align:center; padding:20px; background:#000; color:white; border-radius:10px; margin-top:15px;">本月淨利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>`;
+        <table>${fixedItems.map(f=>`<tr><td>${f.n}</td><td>$${Math.round(f.v).toLocaleString()}</td></tr>`).join('')}<tr><td style="font-weight:bold;">固定合計</td><td style="font-weight:bold;">$${Math.round(tFixed).toLocaleString()}</td></tr></table>
+        <div class="section-title">👥 人事成本總計：$${Math.round(tStaff).toLocaleString()}</div>
+        <div style="font-size:24px; text-align:center; padding:20px; background:#000; color:white; border-radius:10px; margin-top:15px;">本月純利：$${Math.round(tCash+tE - tVendor - tFixed - tStaff).toLocaleString()}</div>
+        <div style="font-size:10px; color:#999; margin-top:10px;">抄表備註：總110(${m.e110}) / 總220(${m.e220}) / 分110(${m.se110}) / 分220(${m.se220}) / 水(${m.w}) / 瓦斯(${m.g})</div>
+    `;
 }
 
-// 4. 月結算 (修正同步邏輯)
+// 其餘通用邏輯
 function loadMonthly(){
-    const month = document.getElementById('mMonth').value;
-    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month))||{staff:{}, bonus:{}};
+    const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb','lease'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
 }
 function saveMonthlyAndGo(){
-    const month = document.getElementById('mMonth').value, s={}, b={};
+    const m = document.getElementById('mMonth').value, s={}, b={};
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
-    const data = { staff:s, bonus:b, e110:parseFloat(document.getElementById('me110').value)||0, e220:parseFloat(document.getElementById('me220').value)||0, se110:parseFloat(document.getElementById('mse110').value)||0, se220:parseFloat(document.getElementById('mse220').value)||0, w:parseFloat(document.getElementById('mw').value)||0, g:parseFloat(document.getElementById('mg').value)||0, pub:parseFloat(document.getElementById('mpub').value)||0, rent:parseFloat(document.getElementById('mrent').value)||0, taxb:parseFloat(document.getElementById('mtaxb').value)||0, lease:parseFloat(document.getElementById('mlease').value)||0 };
-    localStorage.setItem(KEY+'m_'+month, JSON.stringify(data));
-    document.getElementById('rMonth').value = month; switchTab('report');
+    set('m_'+m, { staff:s, bonus:b, e110:parseFloat(document.getElementById('me110').value)||0, e220:parseFloat(document.getElementById('me220').value)||0, se110:parseFloat(document.getElementById('mse110').value)||0, se220:parseFloat(document.getElementById('mse220').value)||0, w:parseFloat(document.getElementById('mw').value)||0, g:parseFloat(document.getElementById('mg').value)||0, pub:parseFloat(document.getElementById('mpub').value)||0, rent:parseFloat(document.getElementById('mrent').value)||0, taxb:parseFloat(document.getElementById('mtaxb').value)||0, lease:parseFloat(document.getElementById('mlease').value)||0 });
+    document.getElementById('rMonth').value = m; switchTab('report');
 }
-
-// 5. 設定區
 function renderSettings(){
     const c = cfg();
-    document.getElementById('upElec').value = c.ue; document.getElementById('upWater').value = c.uw; document.getElementById('upGas').value = c.ug; document.getElementById('sPetty').value = c.petty;
-    document.getElementById('si110').value = c.i110; document.getElementById('si220').value = c.i220; document.getElementById('sis110').value = c.is110; document.getElementById('sis220').value = c.is220;
-    document.getElementById('siw').value = c.iw; document.getElementById('sig').value = c.ig;
-    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div>${s.n}($${s.r}) <button class="btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('');
-    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div class="card"><b>${v.name}</b> <button class="btn-danger" onclick="del('vendors',${i})">刪</button>
-        ${v.type==='品項' ? `<div><input id="itn${i}" placeholder="名"><input id="itp${i}" placeholder="單價"><button onclick="addItem(${i})">加</button></div><div>${(v.items||[]).map(it=>`${it.n}($${it.p})`).join(',')}</div>` : ''}</div>`).join('');
+    ['upElec','upWater','upGas','sPetty','si110','si220','sis110','sis220','siw','sig'].forEach(id=>{
+        const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
+        document.getElementById(id).value = c[map[id]];
+    });
+    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div>${s.n} ($${s.r}) <button class="btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('');
+    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div>${v.name} (${v.type}) <button class="btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('');
 }
 function saveSettings(){
     const c = { ue:parseFloat(document.getElementById('upElec').value), uw:parseFloat(document.getElementById('upWater').value), ug:parseFloat(document.getElementById('upGas').value), petty:parseFloat(document.getElementById('sPetty').value), i110:parseFloat(document.getElementById('si110').value), i220:parseFloat(document.getElementById('si220').value), is110:parseFloat(document.getElementById('sis110').value), is220:parseFloat(document.getElementById('sis220').value), iw:parseFloat(document.getElementById('siw').value), ig:parseFloat(document.getElementById('sig').value) };
     set('cfg', c); alert('儲存成功');
 }
 function addStaff(){ const n=prompt('姓名'); if(n) { const s=get('staff'); s.push({n:n, r:parseFloat(prompt('時薪','190'))}); set('staff',s); renderSettings(); } }
-function addVendor(){ const n=prompt('廠商名'); if(n) { const t=confirm('品項輸入?')?'品項':'金額'; const v=get('vendors'); v.push({name:n, type:t, items:[]}); set('vendors',v); renderSettings(); } }
-function addItem(vi){ const v=get('vendors'), n=document.getElementById('itn'+vi).value, p=parseFloat(document.getElementById('itp'+vi).value); if(n&&p){ v[vi].items.push({n:n,p:p}); set('vendors',v); renderSettings(); } }
+function addVendor(){ const n=prompt('廠商名'); if(n) { const t=confirm('按品項數量輸入?')?'品項':'金額'; const v=get('vendors'); v.push({name:n, type:t, items:[]}); set('vendors',v); renderSettings(); } }
 function del(k,i){ const d=get(k); d.splice(i,1); set(k,d); renderSettings(); }
 async function exportPDF(){ const c=await html2canvas(document.getElementById('repArea')); const p=new jspdf.jsPDF(); p.addImage(c.toDataURL('image/png'),'PNG',10,10,190,0); p.save(`Wazi_Report.pdf`); }
-function backupData(){ const data={}; for(let i=0; i<localStorage.length; i++){ const k=localStorage.key(i); data[k]=localStorage.getItem(k); } const blob=new Blob([JSON.stringify(data)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`Wazi_Backup.json`; a.click(); }
+function backupData(){ const d={}; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.includes(KEY)) d[k]=localStorage.getItem(k); } const b=new Blob([JSON.stringify(d)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`Wazi_Backup.json`; a.click(); }
 function clearAllData(){ if(confirm('清空營運數據?')){ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k.includes('d_')||k.includes('m_')) localStorage.removeItem(k); } location.reload(); } }
 </script>
 </body>
