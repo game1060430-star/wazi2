@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 專業記帳系統 3.0</title>
+    <title>Wazi 專業記帳系統 4.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        * { box-sizing: border-box; font-family: -apple-system, sans-serif; }
         body { background: #f4f7f6; margin: 0; padding: 10px; color: #333; }
         .container { max-width: 600px; margin: 0 auto; }
         .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
-        .tab-btn { padding: 12px 5px; background: #e0e0e0; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; }
+        .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .tab-btn { padding: 12px 5px; background: #e0e0e0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .tab-btn.active { background: #764ba2; color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-size: 12px; color: #777; margin-bottom: 4px; font-weight: bold; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; background: #fff; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; }
         .btn-success { background: #28a745; color: white; }
         .btn-primary { background: #007bff; color: white; }
-        .btn-danger { background: #dc3545; color: white; padding: 5px; font-size: 12px; }
-        .vendor-item-row { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; background: #f9f9f9; padding: 5px; border-radius: 5px; }
+        .btn-danger { background: #dc3545; color: white; padding: 4px 8px; font-size: 11px; border-radius: 4px; }
         .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 15px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
         table th, table td { border: 1px solid #eee; padding: 8px; text-align: center; }
+        .section-title { border-left: 4px solid #764ba2; padding-left: 8px; margin: 15px 0 10px; font-size: 16px; }
     </style>
 </head>
 <body>
@@ -35,15 +35,14 @@
 <div class="container">
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('daily')">每日記帳</button>
-        <button class="tab-btn" onclick="switchTab('monthly')">月結算</button>
-        <button class="tab-btn" onclick="switchTab('mgr')">管理</button>
-        <button class="tab-btn" onclick="switchTab('settings')">參數</button>
+        <button class="tab-btn" onclick="switchTab('monthly')">月結報表</button>
+        <button class="tab-btn" onclick="switchTab('settings')">系統設定</button>
     </div>
 
     <div id="daily" class="tab-content active">
         <div class="card"><input type="date" id="logDate" onchange="loadDaily()" style="width:100%; border:none; font-size:18px; font-weight:bold; text-align:center;"></div>
         
-        <div class="card" style="border-left: 5px solid #28a745;">
+        <div class="card">
             <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                 <h4 style="margin:0;">💰 現金收入</h4>
                 <button onclick="toggleMode()" style="font-size:11px; border:none; background:#eee; padding:2px 8px; border-radius:4px;">切換模式</button>
@@ -59,10 +58,8 @@
                     <div class="form-group"><label>$5重量</label><input type="number" id="w5" oninput="calcDaily()"></div>
                 </div>
             </div>
-            <div id="dMode" style="display:none;">
-                <div class="form-group"><label>直接輸入現金總額</label><input type="number" id="cDirect" oninput="calcDaily()"></div>
-            </div>
-            <div style="text-align:right; font-size:14px;">現金小計: <span id="cSum">0</span></div>
+            <div id="dMode" style="display:none;"><div class="form-group"><label>直接輸入現金總額</label><input type="number" id="cDirect" oninput="calcDaily()"></div></div>
+            <div style="text-align:right; font-size:14px; font-weight:bold; color:#764ba2;">現金小計: <span id="cSum">0</span></div>
         </div>
 
         <div class="grid">
@@ -83,72 +80,74 @@
     <div id="monthly" class="tab-content">
         <div class="card"><input type="month" id="mMonth" onchange="loadMonthly()"></div>
         <div class="card">
-            <h4>👥 員工工時</h4>
+            <h4 style="margin-top:0;">👥 員工工時</h4>
             <div id="mStaffArea"></div>
         </div>
         <div class="card">
-            <h4>⚡ 能源度數 (本月收尾)</h4>
+            <h4 style="margin-top:0;">⚡ 能源收尾度數</h4>
             <div class="grid">
-                <div class="form-group"><label>總表 110V</label><input type="number" id="me110"></div>
-                <div class="form-group"><label>總表 220V</label><input type="number" id="me220"></div>
-                <div class="form-group"><label>分表 110V</label><input type="number" id="mse110"></div>
-                <div class="form-group"><label>分表 220V</label><input type="number" id="mse220"></div>
+                <div class="form-group"><label>總 110V</label><input type="number" id="me110"></div>
+                <div class="form-group"><label>總 220V</label><input type="number" id="me220"></div>
+                <div class="form-group"><label>分 110V</label><input type="number" id="mse110"></div>
+                <div class="form-group"><label>分 220V</label><input type="number" id="mse220"></div>
                 <div class="form-group"><label>水費度數</label><input type="number" id="mw"></div>
+                <div class="form-group"><label>瓦斯度數</label><input type="number" id="mg"></div>
             </div>
         </div>
         <div class="card">
-            <h4>🏢 其他支出</h4>
+            <h4 style="margin-top:0;">🏢 其他支出</h4>
             <div class="grid">
-                <div class="form-group"><label>公攤費</label><input type="number" id="mPub"></div>
-                <div class="form-group"><label>租金</label><input type="number" id="mRent"></div>
+                <div class="form-group"><label>公攤費用</label><input type="number" id="mPub"></div>
+                <div class="form-group"><label>店面租金</label><input type="number" id="mRent"></div>
                 <div class="form-group"><label>營業稅基數</label><input type="number" id="mTaxB"></div>
                 <div class="form-group"><label>設備租賃</label><input type="number" id="mLease"></div>
             </div>
         </div>
-        <button class="btn btn-success" onclick="saveMonthly()">💾 儲存月結資料</button>
+        <button class="btn btn-success" onclick="saveMonthly()">💾 儲存並產生報表</button>
         <hr>
-        <div id="repArea" class="card" style="display:none;"></div>
+        <div id="repArea" class="card" style="display:none; padding:20px;"></div>
         <button class="btn btn-primary" id="pdfBtn" style="display:none;" onclick="exportPDF()">📥 輸出 PDF 並更新起始度數</button>
     </div>
 
-    <div id="mgr" class="tab-content">
-        <div class="card">
-            <h4>👥 員工管理</h4>
-            <div id="listStaff"></div>
-            <div style="background:#f0f0f0; padding:10px; border-radius:8px; margin-top:10px;">
-                <input type="text" id="nsName" placeholder="姓名" style="width:30%;">
-                <input type="number" id="nsRate" placeholder="時薪" style="width:30%;">
-                <input type="number" id="nsBonus" placeholder="獎金%" style="width:25%;">
-                <button onclick="addStaff()" style="width:100%; margin-top:5px;">+ 新增</button>
-            </div>
-        </div>
-        <div class="card">
-            <h4>📦 廠商與品項管理</h4>
-            <div id="listVendor"></div>
-            <div style="background:#f0f0f0; padding:10px; border-radius:8px; margin-top:10px;">
-                <input type="text" id="nvName" placeholder="廠商名稱" style="width:60%;">
-                <select id="nvType" style="width:35%;"><option value="金額">直接金額</option><option value="品項">品項清單</option></select>
-                <button onclick="addVendor()" style="width:100%; margin-top:5px;">+ 新增廠商</button>
-            </div>
-        </div>
-    </div>
-
     <div id="settings" class="tab-content">
+        <div class="section-title">👥 員工與廠商管理</div>
         <div class="card">
-            <h4>⚙️ 系統常數</h4>
-            <div class="grid">
-                <div class="form-group"><label>零用金</label><input type="number" id="sPetty" value="8000"></div>
-                <div class="form-group"><label>手續費(%)</label><input type="number" id="sFee" value="2.4"></div>
+            <div id="listStaff"></div>
+            <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-top:10px;">
+                <div class="grid"><input type="text" id="nsName" placeholder="姓名"><input type="number" id="nsRate" placeholder="時薪"></div>
+                <input type="number" id="nsBonus" placeholder="獎金加成 %" style="margin-top:5px;">
+                <button class="btn btn-primary" onclick="addStaff()">+ 新增員工</button>
             </div>
         </div>
         <div class="card">
-            <h4>📏 起始度數</h4>
+            <div id="listVendor"></div>
+            <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-top:10px;">
+                <div class="grid"><input type="text" id="nvName" placeholder="廠商名稱"><select id="nvType"><option value="金額">直接金額</option><option value="品項">品項清單</option></select></div>
+                <button class="btn btn-primary" onclick="addVendor()" style="margin-top:5px;">+ 新增廠商</button>
+            </div>
+        </div>
+
+        <div class="section-title">⚙️ 系統參數與單價 (浮動)</div>
+        <div class="card">
+            <div class="grid">
+                <div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div>
+                <div class="form-group"><label>支付手續費%</label><input type="number" id="sFee"></div>
+                <div class="form-group"><label>電費單價/度</label><input type="number" id="upElec"></div>
+                <div class="form-group"><label>水費單價/度</label><input type="number" id="upWater"></div>
+                <div class="form-group"><label>瓦斯單價/度</label><input type="number" id="upGas"></div>
+                <div class="form-group"><label>分租公攤%</label><input type="number" id="upPubRate"></div>
+            </div>
+        </div>
+
+        <div class="section-title">📏 上月結尾 (起始度數)</div>
+        <div class="card">
             <div class="grid">
                 <div class="form-group"><label>總 110V</label><input type="number" id="si110"></div>
                 <div class="form-group"><label>總 220V</label><input type="number" id="si220"></div>
                 <div class="form-group"><label>分 110V</label><input type="number" id="sis110"></div>
                 <div class="form-group"><label>分 220V</label><input type="number" id="sis220"></div>
-                <div class="form-group"><label>水費</label><input type="number" id="siw"></div>
+                <div class="form-group"><label>水費起始</label><input type="number" id="siw"></div>
+                <div class="form-group"><label>瓦斯起始</label><input type="number" id="sig"></div>
             </div>
         </div>
         <button class="btn btn-success" onclick="saveSettings()">儲存所有設定</button>
@@ -156,10 +155,10 @@
 </div>
 
 <script>
-// --- 資料庫 ---
-const get = (k)=>JSON.parse(localStorage.getItem('w3_'+k)) || [];
-const set = (k,v)=>localStorage.setItem('w3_'+k, JSON.stringify(v));
-const cfg = ()=>JSON.parse(localStorage.getItem('w3_cfg')) || {petty:8000, fee:2.4, i110:0, i220:0, is110:0, is220:0, iw:0};
+// --- 核心資料處理 ---
+const get = (k)=>JSON.parse(localStorage.getItem('w4_'+k)) || [];
+const set = (k,v)=>localStorage.setItem('w4_'+k, JSON.stringify(v));
+const cfg = ()=>JSON.parse(localStorage.getItem('w4_cfg')) || {petty:8000, fee:2.4, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, upr:75};
 
 let isDirect = false;
 document.getElementById('logDate').valueAsDate = new Date();
@@ -167,8 +166,7 @@ document.getElementById('logDate').valueAsDate = new Date();
 function switchTab(id){
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el=>el.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    event.target.classList.add('active');
-    if(id==='mgr') renderMgr();
+    event.currentTarget.classList.add('active');
     if(id==='settings') renderSettings();
     if(id==='daily') loadDaily();
 }
@@ -179,13 +177,12 @@ function toggleMode(){
     document.getElementById('dMode').style.display = isDirect?'block':'none';
 }
 
-// --- 每日記帳計算 ---
+// --- 每日記帳邏輯 ---
 function calcDaily(){
     const c = cfg();
     let cash = 0;
-    if(isDirect){
-        cash = parseFloat(document.getElementById('cDirect').value)||0;
-    } else {
+    if(isDirect){ cash = parseFloat(document.getElementById('cDirect').value)||0; }
+    else {
         const c1000 = (parseFloat(document.getElementById('c1000').value)||0)*1000;
         const c100 = (parseFloat(document.getElementById('c100').value)||0)*100;
         const w50 = Math.max(0, (parseFloat(document.getElementById('w50').value)||0)-26)*5;
@@ -194,23 +191,16 @@ function calcDaily(){
         cash = c1000+c100+w50+w10+w5;
     }
     document.getElementById('cSum').innerText = Math.round(cash).toLocaleString();
-    const on = parseFloat(document.getElementById('pOnline').value)||0;
-    const sc = parseFloat(document.getElementById('pScan').value)||0;
-    const net = (cash - c.petty) + (on+sc)*(1 - c.fee/100);
+    const net = (cash - c.petty) + (parseFloat(document.getElementById('pOnline').value)||0 + parseFloat(document.getElementById('pScan').value)||0)*(1 - c.fee/100);
     document.getElementById('dNet').innerText = `NT$ ${Math.round(net).toLocaleString()}`;
 }
 
 function loadDaily(){
     const date = document.getElementById('logDate').value;
     const d = JSON.parse(localStorage.getItem('d_'+date)) || {vs:{}};
-    document.getElementById('c1000').value = d.c1000||'';
-    document.getElementById('c100').value = d.c100||'';
-    document.getElementById('w50').value = d.w50||'';
-    document.getElementById('w10').value = d.w10||'';
-    document.getElementById('w5').value = d.w5||'';
+    const fields = ['c1000','c100','w50','w10','w5','pOnline','pScan'];
+    fields.forEach(f => document.getElementById(f).value = d[f]||'');
     document.getElementById('cDirect').value = d.cdir||'';
-    document.getElementById('pOnline').value = d.pon||'';
-    document.getElementById('pScan').value = d.psc||'';
 
     const vendors = get('vendors');
     document.getElementById('vDailyArea').innerHTML = vendors.map(v => {
@@ -218,9 +208,9 @@ function loadDaily(){
             return `<div class="card"><label>${v.name}</label><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}"></div>`;
         } else {
             const itemsHtml = (v.items||[]).map(it => `
-                <div class="vendor-item-row">
+                <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px; background:#f9f9f9; padding:5px; border-radius:5px;">
                     <span style="font-size:12px; flex:1;">${it.n} ($${it.p})</span>
-                    <input type="number" step="any" placeholder="量" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[v.name+'_'+it.n]||''}" style="width:60px; padding:5px;">
+                    <input type="number" placeholder="數量" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[v.name+'_'+it.n]||''}" style="width:80px;">
                 </div>
             `).join('');
             return `<div class="card"><b>${v.name}</b>${itemsHtml}</div>`;
@@ -237,74 +227,75 @@ function saveDaily(){
     const data = {
         c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value,
         w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value,
-        cdir:document.getElementById('cDirect').value, pon:document.getElementById('pOnline').value, psc:document.getElementById('pScan').value,
+        cdir:document.getElementById('cDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value,
         vs: vs
     };
     localStorage.setItem('d_'+date, JSON.stringify(data));
-    alert('已儲存！');
+    alert('每日數據已存檔');
 }
 
-// --- 管理頁面 ---
-function renderMgr(){
-    const staffs = get('staff');
-    document.getElementById('listStaff').innerHTML = staffs.map((s,i)=>`
+// --- 系統設定 (員工/廠商/參數) ---
+function renderSettings(){
+    const c = cfg();
+    document.getElementById('sPetty').value = c.petty; document.getElementById('sFee').value = c.fee;
+    document.getElementById('upElec').value = c.ue; document.getElementById('upWater').value = c.uw;
+    document.getElementById('upGas').value = c.ug; document.getElementById('upPubRate').value = c.upr;
+    document.getElementById('si110').value = c.i110; document.getElementById('si220').value = c.i220;
+    document.getElementById('sis110').value = c.is110; document.getElementById('sis220').value = c.is220;
+    document.getElementById('siw').value = c.iw; document.getElementById('sig').value = c.ig;
+
+    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`
         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            <span>${s.n} (時薪${s.r} / 獎金${s.b}%)</span>
+            <span>${s.n} (時薪$${s.r} / 獎金${s.b}%)</span>
             <button class="btn-danger" onclick="del('staff',${i})">刪除</button>
-        </div>
-    `).join('');
+        </div>`).join('');
     
-    const vendors = get('vendors');
-    document.getElementById('listVendor').innerHTML = vendors.map((v,i)=>`
+    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`
         <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>${v.name} (${v.type})</b>
-                <button class="btn-danger" onclick="del('vendors',${i})">刪除</button>
-            </div>
-            ${v.type==='品項'?`
-                <div id="vit-${i}" style="margin-top:10px;">
-                    ${(v.items||[]).map((it,ii)=>`<div>${it.n} $${it.p} <button onclick="delItem(${i},${ii})">x</button></div>`).join('')}
-                    <input type="text" id="vitn-${i}" placeholder="品名" style="width:40%">
-                    <input type="number" id="vitp-${i}" placeholder="單價" style="width:30%">
-                    <button onclick="addItem(${i})">加品項</button>
-                </div>
-            `:''}
-        </div>
-    `).join('');
+            <div style="display:flex; justify-content:space-between;"><b>${v.name}</b><button class="btn-danger" onclick="del('vendors',${i})">刪除</button></div>
+            ${v.type==='品項'?`<div style="font-size:12px; margin-top:5px;">
+                ${(v.items||[]).map((it,ii)=>`<div>${it.n} $${it.p} <span onclick="delItem(${i},${ii})" style="color:red; cursor:pointer;">[x]</span></div>`).join('')}
+                <input type="text" id="itn${i}" placeholder="品名" style="width:40%; padding:2px;"> <input type="number" id="itp${i}" placeholder="單價" style="width:30%; padding:2px;"> <button onclick="addItem(${i})">加</button>
+            </div>`:''}
+        </div>`).join('');
+}
+
+function saveSettings(){
+    const c = {
+        petty: parseFloat(document.getElementById('sPetty').value), fee: parseFloat(document.getElementById('sFee').value),
+        ue: parseFloat(document.getElementById('upElec').value), uw: parseFloat(document.getElementById('upWater').value),
+        ug: parseFloat(document.getElementById('upGas').value), upr: parseFloat(document.getElementById('upPubRate').value),
+        i110: parseFloat(document.getElementById('si110').value), i220: parseFloat(document.getElementById('si220').value),
+        is110: parseFloat(document.getElementById('sis110').value), is220: parseFloat(document.getElementById('sis220').value),
+        iw: parseFloat(document.getElementById('siw').value), ig: parseFloat(document.getElementById('sig').value)
+    };
+    set('cfg', c); alert('設定儲存成功！');
 }
 
 function addStaff(){
-    const s = get('staff');
-    s.push({n:document.getElementById('nsName').value, r:parseFloat(document.getElementById('nsRate').value), b:parseFloat(document.getElementById('nsBonus').value)});
-    set('staff',s); renderMgr();
+    const s = get('staff'); s.push({n:document.getElementById('nsName').value, r:parseFloat(document.getElementById('nsRate').value), b:parseFloat(document.getElementById('nsBonus').value)||0});
+    set('staff',s); renderSettings();
 }
 function addVendor(){
-    const v = get('vendors');
-    v.push({name:document.getElementById('nvName').value, type:document.getElementById('nvType').value, items:[]});
-    set('vendors',v); renderMgr();
+    const v = get('vendors'); v.push({name:document.getElementById('nvName').value, type:document.getElementById('nvType').value, items:[]});
+    set('vendors',v); renderSettings();
 }
 function addItem(vi){
-    const v = get('vendors');
-    v[vi].items.push({n:document.getElementById('vitn-'+vi).value, p:parseFloat(document.getElementById('vitp-'+vi).value)});
-    set('vendors',v); renderMgr();
+    const v = get('vendors'); v[vi].items.push({n:document.getElementById('itn'+vi).value, p:parseFloat(document.getElementById('itp'+vi).value)});
+    set('vendors',v); renderSettings();
 }
-function del(k,i){ const d = get(k); d.splice(i,1); set(k,d); renderMgr(); }
-function delItem(vi,ii){ const v = get('vendors'); v[vi].items.splice(ii,1); set('vendors',v); renderMgr(); }
+function del(k,i){ const d = get(k); d.splice(i,1); set(k,d); renderSettings(); }
+function delItem(vi,ii){ const v = get('vendors'); v[vi].items.splice(ii,1); set('vendors',v); renderSettings(); }
 
-// --- 月結與報表 ---
+// --- 月結與 PDF 報表 ---
 function loadMonthly(){
     const month = document.getElementById('mMonth').value;
     const m = JSON.parse(localStorage.getItem('m_'+month))||{staff:{}};
-    const staffs = get('staff');
-    document.getElementById('mStaffArea').innerHTML = staffs.map(s=>`
-        <div class="form-group"><label>${s.n} 本月工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff[s.n]||''}"></div>
+    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`
+        <div class="form-group"><label>${s.n} 工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff[s.n]||''}"></div>
     `).join('');
-    document.getElementById('me110').value = m.e110||''; document.getElementById('me220').value = m.e220||'';
-    document.getElementById('mse110').value = m.se110||''; document.getElementById('mse220').value = m.se220||'';
-    document.getElementById('mw').value = m.w||''; document.getElementById('mPub').value = m.pub||'';
-    document.getElementById('mRent').value = m.rent||''; document.getElementById('mTaxB').value = m.taxb||'';
-    document.getElementById('mLease').value = m.lease||'';
-    genReport();
+    const f = ['e110','e220','se110','se220','w','g','pub','rent','taxb','lease'];
+    f.forEach(k => document.getElementById('m'+k).value = m[k]||'');
 }
 
 function saveMonthly(){
@@ -313,62 +304,55 @@ function saveMonthly(){
     const data = {
         staff: sMap, e110: parseFloat(document.getElementById('me110').value)||0, e220: parseFloat(document.getElementById('me220').value)||0,
         se110: parseFloat(document.getElementById('mse110').value)||0, se220: parseFloat(document.getElementById('mse220').value)||0,
-        w: parseFloat(document.getElementById('mw').value)||0, pub: parseFloat(document.getElementById('mPub').value)||0,
-        rent: parseFloat(document.getElementById('mRent').value)||0, taxb: parseFloat(document.getElementById('mTaxB').value)||0,
-        lease: parseFloat(document.getElementById('mLease').value)||0
+        w: parseFloat(document.getElementById('mw').value)||0, g: parseFloat(document.getElementById('mg').value)||0,
+        pub: parseFloat(document.getElementById('mpub').value)||0, rent: parseFloat(document.getElementById('mrent').value)||0,
+        taxb: parseFloat(document.getElementById('mtaxb').value)||0, lease: parseFloat(document.getElementById('mlease').value)||0
     };
     localStorage.setItem('m_'+month, JSON.stringify(data));
-    alert('月結已儲存！'); genReport();
+    genReport();
 }
 
 function genReport(){
     const month = document.getElementById('mMonth').value;
-    if(!month) return;
     const m = JSON.parse(localStorage.getItem('m_'+month));
     const c = cfg();
     if(!m) return;
 
-    let totalRev = 0, totalVendor = 0;
+    let totalRev = 0;
     for(let i=1; i<=31; i++){
-        const day = `${month}-${String(i).padStart(2,'0')}`;
-        const d = JSON.parse(localStorage.getItem('d_'+day));
+        const d = JSON.parse(localStorage.getItem('d_'+month+'-'+String(i).padStart(2,'0')));
         if(d){
-            let cash = d.mode ? (parseFloat(d.cdir)||0) : 
-                ((parseFloat(d.c1000)||0)*1000 + (parseFloat(d.c100)||0)*100 + Math.max(0,parseFloat(d.w50)-26)*5 + Math.max(0,parseFloat(d.w10)-26)*1.33 + Math.max(0,parseFloat(d.w5)-26)*1.1);
-            totalRev += (cash - c.petty) + (parseFloat(d.pon)||0 + parseFloat(d.psc)||0)*(1-c.fee/100);
-            for(let key in d.vs){
-                if(key.includes('_')){ // 品項模式: 數量 * 單價
-                    const p = parseFloat(key.split('_')[1]) || 0; // 這裡是舊邏輯，我們改從 vendors 找
-                }
-                totalVendor += d.vs[key]; // 簡單化: 每日記帳時 vs 已存入總額
-            }
+            let cash = d.cdir ? parseFloat(d.cdir) : ((parseFloat(d.c1000)||0)*1000 + (parseFloat(d.c100)||0)*100 + Math.max(0,parseFloat(d.w50)-26)*5 + Math.max(0,parseFloat(d.w10)-26)*1.33 + Math.max(0,parseFloat(d.w5)-26)*1.1);
+            totalRev += (cash - c.petty) + (parseFloat(d.pOnline)||0 + parseFloat(d.pScan)||0)*(1-c.fee/100);
         }
     }
 
-    let staffTotal = 0;
-    const staffRows = get('staff').map(s=>{
-        const hrs = m.staff[s.n]||0;
-        const pay = (hrs * s.r) * (1 + s.b/100);
-        staffTotal += pay;
-        return `<tr><td>${s.n}</td><td>${hrs}</td><td>$${Math.round(pay)}</td></tr>`;
+    let sTotal = 0;
+    const sRows = get('staff').map(s=>{
+        const h = m.staff[s.n]||0; const pay = (h*s.r)*(1+s.b/100); sTotal += pay;
+        return `<tr><td>${s.n}</td><td>${h}</td><td>$${Math.round(pay)}</td></tr>`;
     }).join('');
 
-    const tax = m.taxb * 0.05;
-    const eCost = (m.e110 - c.i110)*5 + (m.e220 - c.i220)*5; // 假設電費單價5,老闆可自改
-    const wCost = (m.w - c.iw)*9;
+    const eUse = (m.e110-c.i110) + (m.e220-c.i220);
+    const seUse = (m.se110-c.is110) + (m.se220-c.is220);
+    const energyCost = (eUse * c.ue) + ( (m.w-c.iw)*c.uw ) + ( (m.g-c.ig)*c.ug );
 
     document.getElementById('repArea').style.display = 'block';
     document.getElementById('pdfBtn').style.display = 'block';
     document.getElementById('repArea').innerHTML = `
-        <h3 style="text-align:center;">Wazi ${month} 報表</h3>
+        <h3 style="text-align:center;">Wazi ${month} 營運報表</h3>
         <table>
-            <tr><th>淨營業額</th><td>$${Math.round(totalRev).toLocaleString()}</td></tr>
-            <tr><th>員工總薪</th><td>$${Math.round(staffTotal).toLocaleString()}</td></tr>
-            <tr><th>水電能源</th><td>$${Math.round(eCost+wCost).toLocaleString()}</td></tr>
-            <tr><th>固定支出</th><td>$${(m.pub+m.rent+tax+m.lease).toLocaleString()}</td></tr>
+            <tr><th>淨總營收</th><td>$${Math.round(totalRev).toLocaleString()}</td></tr>
+            <tr><th>薪資總計</th><td>$${Math.round(sTotal).toLocaleString()}</td></tr>
+            <tr><th>能源成本</th><td>$${Math.round(energyCost).toLocaleString()}</td></tr>
+            <tr><th>固定支出</th><td>$${(m.pub+m.rent+m.taxb*0.05+m.lease).toLocaleString()}</td></tr>
         </table>
-        <h4 style="margin:10px 0 5px;">員工明細 (含獎金)</h4>
-        <table><tr><th>姓名</th><th>工時</th><th>實發</th></tr>${staffRows}</table>
+        <h4 style="margin:10px 0 5px;">員工明細</h4>
+        <table><tr><th>姓名</th><th>工時</th><th>實發</th></tr>${sRows}</table>
+        <h4 style="margin:10px 0 5px;">能源明細</h4>
+        <div style="font-size:12px;">
+            總表電: ${eUse}度 | 分表電: ${seUse}度 | 水: ${m.w-c.iw}度 | 瓦斯: ${m.g-c.ig}度
+        </div>
     `;
 }
 
@@ -376,30 +360,14 @@ async function exportPDF(){
     const month = document.getElementById('mMonth').value;
     const m = JSON.parse(localStorage.getItem('m_'+month));
     const c = cfg();
-    c.i110 = m.e110; c.i220 = m.e220; c.is110 = m.se110; c.is220 = m.se220; c.iw = m.w;
+    c.i110=m.e110; c.i220=m.e220; c.is110=m.se110; c.is220=m.se220; c.iw=m.w; c.ig=m.g;
     set('cfg', c);
     const canvas = await html2canvas(document.getElementById('repArea'));
     const pdf = new jspdf.jsPDF();
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 190, 0);
     pdf.save(`Wazi_${month}.pdf`);
-    alert('PDF已下載，起始度數已同步更新！');
-}
-
-function renderSettings(){
-    const c = cfg();
-    document.getElementById('sPetty').value = c.petty; document.getElementById('sFee').value = c.fee;
-    document.getElementById('si110').value = c.i110; document.getElementById('si220').value = c.i220;
-    document.getElementById('sis110').value = c.is110; document.getElementById('sis220').value = c.is220;
-    document.getElementById('siw').value = c.iw;
-}
-function saveSettings(){
-    const c = {
-        petty:parseFloat(document.getElementById('sPetty').value), fee:parseFloat(document.getElementById('sFee').value),
-        i110:parseFloat(document.getElementById('si110').value), i220:parseFloat(document.getElementById('si220').value),
-        is110:parseFloat(document.getElementById('sis110').value), is220:parseFloat(document.getElementById('sis220').value),
-        iw:parseFloat(document.getElementById('siw').value)
-    };
-    set('cfg',c); alert('設定儲存成功！');
+    alert('PDF已輸出，度數已自動結轉至下月。');
+    renderSettings();
 }
 </script>
 </body>
