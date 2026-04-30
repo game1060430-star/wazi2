@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 早餐店管理系統 V21.5</title>
+    <title>Wazi 早餐店管理系統 V21.6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -11,7 +11,7 @@
         body { background: #f4f7f6; margin: 0; padding: 10px; color: #333; font-size: 14px; }
         .container { max-width: 850px; margin: 0 auto; }
         .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .tabs { display: grid; grid-template-columns: repeat(3, 2fr); gap: 8px; margin-bottom: 12px; }
         .tab-btn { padding: 12px 5px; background: #e0e0e0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
         .tab-btn.active { background: #764ba2; color: white; }
         .tab-content { display: none; }
@@ -24,7 +24,7 @@
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; }
         .btn-success { background: #28a745; color: white; }
         .btn-primary { background: #007bff; color: white; }
-        .btn-danger { background: #dc3545; color: white; padding: 4px 8px; font-size: 11px; border-radius: 4px; border:none; }
+        .btn-danger { background: #dc3545; color: white; padding: 10px; font-size: 14px; border-radius: 8px; border:none; margin-top:10px; color:white; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         table th, table td { border: 1px solid #eee; padding: 8px; text-align: center; }
         .section-title { border-left: 4px solid #764ba2; padding-left: 8px; margin: 15px 0 10px; font-size: 15px; font-weight: bold; background: #f9f0ff; padding: 5px; }
@@ -36,7 +36,7 @@
         .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
     </style>
 </head>
-<body>
+<body onload="initApp()">
 <div class="container">
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('daily')">每日記帳</button>
@@ -141,7 +141,12 @@
         <button class="btn btn-success" onclick="saveSettings()">💾 儲存設定</button>
     </div>
 
-    <div id="data" class="tab-content"><div class="card"><button class="btn btn-primary" onclick="backupData()">📥 備份數據</button></div></div>
+    <div id="data" class="tab-content">
+        <div class="card">
+            <button class="btn btn-primary" onclick="backupData()">📥 備份數據</button>
+            <button class="btn btn-danger" onclick="clearAllData()">⚠️ 清空所有資料（含設定）</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -150,7 +155,12 @@ const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
 
-// --- 以下為報表邏輯修改 ---
+function initApp(){
+    document.getElementById('logDate').valueAsDate = new Date();
+    const curMonth = new Date().toISOString().slice(0, 7);
+    ['rMonth','mMonth','reconMonth'].forEach(id=>document.getElementById(id).value = curMonth);
+    loadDaily();
+}
 
 function genFullReport(){
     const month = document.getElementById('rMonth').value, m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
@@ -174,117 +184,68 @@ function genFullReport(){
         }
     }
 
-    // 廠商明細清單
     let vendorDetailHtml = "";
-    Object.keys(vSum).forEach(vname => {
-        vendorDetailHtml += `<tr><td>${vname}</td><td>$${Math.round(vSum[vname]).toLocaleString()}</td></tr>`;
-    });
+    Object.keys(vSum).forEach(vn => vendorDetailHtml += `<tr><td>${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`);
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
 
-    // 固定支出明細清單
     const eNet = ((m.e110||c.i110)-c.i110)+((m.e220||c.i220)-c.i220)-((m.se110||c.is110)-c.is110)-((m.se220||c.is220)-c.is220);
-    const wNet = (m.w||c.iw)-c.iw, gNet = (m.g||c.ig)-c.ig;
     const fixedItems = [
         {n:'店面租金',v:m.rent}, {n:'公攤費(0.75折)',v:m.pub*0.75}, {n:'設備租賃',v:m.lease},
-        {n:`電費(${Math.round(eNet)}度)`,v:eNet*c.ue}, {n:`水費(${wNet}度)`,v:wNet*c.uw}, 
-        {n:`瓦斯(${gNet}度)`,v:gNet*c.ug}, {n:'稅金(5%)',v:m.taxb*0.05}
+        {n:`電費(${Math.round(eNet)}度)`,v:eNet*c.ue}, {n:`水費`,v:((m.w||c.iw)-c.iw)*c.uw}, 
+        {n:`瓦斯`,v:((m.g||c.ig)-c.ig)*c.ug}, {n:'稅金(5%)',v:m.taxb*0.05}
     ];
     let fixedDetailHtml = fixedItems.map(item => `<tr><td>${item.n}</td><td>$${Math.round(item.v||0).toLocaleString()}</td></tr>`).join('');
     const tFixed = fixedItems.reduce((a,b)=>a+(b.v||0), 0);
 
-    // 人事成本明細清單
     let staffDetailHtml = "";
     let tStaff = 0;
     get('staff').forEach(s => {
         const hours = m.staff?.[s.n]||0;
-        const bonus = m.bonus?.[s.n]||0;
-        const salary = (hours * s.r) + bonus;
-        staffDetailHtml += `<tr><td>${s.n}</td><td>${hours} hr</td><td>$${s.r}/hr</td><td>$${bonus.toLocaleString()}</td><td>$${Math.round(salary).toLocaleString()}</td></tr>`;
-        tStaff += salary;
+        const bonusPct = m.bonus?.[s.n]||0; // 這裡是輸入百分比
+        const baseSalary = hours * s.r;
+        const bonusAmt = baseSalary * (bonusPct / 100);
+        const totalSalary = baseSalary + bonusAmt;
+        staffDetailHtml += `<tr><td>${s.n}</td><td>${hours} hr</td><td>$${s.r}/hr</td><td>${bonusPct}% ($${Math.round(bonusAmt)})</td><td>$${Math.round(totalSalary).toLocaleString()}</td></tr>`;
+        tStaff += totalSalary;
     });
 
     document.getElementById('repArea').style.display='block';
     document.getElementById('repArea').innerHTML = `
         <div id="pdfPrintTarget" style="padding:10px;">
-            <h2 style="text-align:center;">Wazi 早餐店 - ${month} 營運報表</h2>
-            
-            <h3 class="section-title">📅 每日營業明細</h3>
-            <table>
-                <tr><th>日期</th><th>現金收入</th><th>網路</th><th>掃碼</th><th>當日總額</th></tr>
-                ${dayRows}
-                <tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td>$${Math.round(tOnline).toLocaleString()}</td><td>$${Math.round(tScan).toLocaleString()}</td><td>$${Math.round(tCash+tOnline+tScan).toLocaleString()}</td></tr>
-            </table>
-            <div style="text-align:right; margin:10px 0; font-weight:bold;">
-                總營業天數：${tDays} 天 | 日平均營業額：$${tDays > 0 ? Math.round((tCash+tOnline+tScan)/tDays).toLocaleString() : 0}
-            </div>
-
-            <h3 class="section-title">📦 廠商進貨支出</h3>
-            <table><tr><th>廠商名稱</th><th>單月結帳總額</th></tr>${vendorDetailHtml}<tr class="total-row"><td>廠商支出總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
-
-            <h3 class="section-title">🏢 營運固定支出</h3>
-            <table><tr><th>項目名稱</th><th>支出金額</th></tr>${fixedDetailHtml}<tr class="total-row"><td>固定支出總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
-
-            <h3 class="section-title">👥 人事成本明細</h3>
-            <table>
-                <tr><th>姓名</th><th>總工時</th><th>時薪</th><th>獎金</th><th>本月薪資</th></tr>
-                ${staffDetailHtml}
-                <tr class="total-row"><td colspan="4">人事成本總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr>
-            </table>
-
-            <div class="profit-box">本月純利盈餘：$${Math.round(tCash+tOnline+tScan - tVendor - tFixed - tStaff).toLocaleString()}</div>
-        </div>
-    `;
+            <h2 style="text-align:center;">Wazi 早餐店 - ${month} 報表</h2>
+            <h3 class="section-title">📅 每日明細</h3>
+            <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}
+            <tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td>$${Math.round(tOnline).toLocaleString()}</td><td>$${Math.round(tScan).toLocaleString()}</td><td>$${Math.round(tCash+tOnline+tScan).toLocaleString()}</td></tr></table>
+            <div style="text-align:right;margin:5px;font-weight:bold;">天數:${tDays} | 日均:$${tDays>0?Math.round((tCash+tOnline+tScan)/tDays).toLocaleString():0}</div>
+            <h3 class="section-title">📦 廠商支出</h3>
+            <table><tr><th>廠商</th><th>金額</th></tr>${vendorDetailHtml}<tr class="total-row"><td>總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
+            <h3 class="section-title">🏢 固定支出</h3>
+            <table><tr><th>項目</th><th>金額</th></tr>${fixedDetailHtml}<tr class="total-row"><td>總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
+            <h3 class="section-title">👥 人事明細</h3>
+            <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金%</th><th>薪資</th></tr>${staffDetailHtml}
+            <tr class="total-row"><td colspan="4">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table>
+            <div class="profit-box">本月純利：$${Math.round(tCash+tOnline+tScan - tVendor - tFixed - tStaff).toLocaleString()}</div>
+        </div>`;
 }
 
 async function exportPDF(){
-    const month = document.getElementById('rMonth').value;
-    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month));
+    const month = document.getElementById('rMonth').value, m = JSON.parse(localStorage.getItem(KEY+'m_'+month));
     if(!m) return alert('無數據');
-
-    // 直接使用 html2canvas 擷取報表區塊轉換為圖片，再置入 PDF 中 (這是最能保持排版的方式)
-    const element = document.getElementById('pdfPrintTarget');
-    const canvas = await html2canvas(element, { scale: 3, useCORS: true });
-    const imgData = canvas.toDataURL('image/png');
-    
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Wazi_Report_${month}.pdf`);
-    
-    // 同步下月起始度數 (保留先前需求)
-    const c = cfg();
-    c.i110=m.e110; c.i220=m.e220; c.is110=m.se110; c.is220=m.se220; c.iw=m.w; c.ig=m.g; set('cfg',c);
-    alert('PDF 報表檔案已下載，起始度數已同步。');
+    const canvas = await html2canvas(document.getElementById('pdfPrintTarget'), { scale: 3 });
+    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
+    pdf.save(`Wazi_${month}.pdf`);
+    const c = cfg(); c.i110=m.e110; c.i220=m.e220; c.is110=m.se110; c.is220=m.se220; c.iw=m.w; c.ig=m.g; set('cfg',c);
+    alert('PDF 已下載，起始度數同步完成。');
 }
 
-// 其餘功能函數 (不更動邏輯)
-function showLiveCalc(type){
-    const c = cfg();
-    const cur = parseFloat(document.getElementById('m'+type).value) || 0;
-    const map = { e110:'i110', e220:'i220', se110:'is110', se220:'is220', w:'iw', g:'ig' };
-    const priceMap = { e110:c.ue, e220:c.ue, se110:c.ue, se220:c.ue, w:c.uw, g:c.ug };
-    const start = c[map[type]] || 0;
-    const diff = Math.max(0, cur - start);
-    const amt = diff * priceMap[type];
-    document.getElementById('hint_'+type).innerText = `用量: ${diff} | 金額: $${Math.round(amt)}`;
-}
-function calcDaily(){
-    const c = cfg();
-    const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
-    const cash = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
-    const rev = (cash - c.petty) + val('pOnline') + val('pScan');
-    document.getElementById('cSumDisplay').innerText = `$ ${Math.round(rev).toLocaleString()}`;
-}
 function loadDaily(){
     const date = document.getElementById('logDate').value;
     const d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
-    const vendors = get('vendors');
+    
     let html = "";
-    vendors.forEach(v => {
+    get('vendors').forEach(v => {
         if(v.type==='金額'){
             html += `<div class="v-row"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}"></div>`;
         } else {
@@ -297,20 +258,21 @@ function loadDaily(){
     document.getElementById('vDailyArea').innerHTML = html;
     calcDaily();
 }
+
 function saveDaily(){
-    const date = document.getElementById('logDate').value;
-    const vs = {};
+    const date = document.getElementById('logDate').value, vs = {};
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
-    const data = { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs };
-    localStorage.setItem(KEY+'d_'+date, JSON.stringify(data)); alert('今日記帳已儲存');
+    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs });
+    alert('儲存成功');
 }
+
 function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
-    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
+    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb','lease'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
-    ['e110','e220','se110','se220','w','g'].forEach(t=>showLiveCalc(t));
 }
+
 function saveMonthlyAndGo(){
     const m = document.getElementById('mMonth').value, s={}, b={};
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
@@ -318,30 +280,54 @@ function saveMonthlyAndGo(){
     set('m_'+m, { staff:s, bonus:b, e110:parseFloat(document.getElementById('me110').value)||0, e220:parseFloat(document.getElementById('me220').value)||0, se110:parseFloat(document.getElementById('mse110').value)||0, se220:parseFloat(document.getElementById('mse220').value)||0, w:parseFloat(document.getElementById('mw').value)||0, g:parseFloat(document.getElementById('mg').value)||0, pub:parseFloat(document.getElementById('mpub').value)||0, rent:parseFloat(document.getElementById('mrent').value)||0, taxb:parseFloat(document.getElementById('mtaxb').value)||0, lease:parseFloat(document.getElementById('mlease').value)||0 });
     document.getElementById('rMonth').value = m; switchTab('report');
 }
-function renderSettings(){
-    const c = cfg();
-    const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
-    Object.keys(map).forEach(id=>document.getElementById(id).value = c[map[id]]||0);
-    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div>${s.n} ($${s.r}) <button class="btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('');
-    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div>${v.name} (${v.type}) <button class="btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('');
+
+function clearAllData(){
+    if(confirm('警告：這將永久刪除所有記帳、員工、廠商及設定資料！確定嗎？')){
+        Object.keys(localStorage).forEach(k => { if(k.startsWith(KEY)) localStorage.removeItem(k); });
+        location.reload();
+    }
 }
-function saveSettings(){
-    const c = { ue:parseFloat(document.getElementById('upElec').value), uw:parseFloat(document.getElementById('upWater').value), ug:parseFloat(document.getElementById('upGas').value), petty:parseFloat(document.getElementById('sPetty').value), i110:parseFloat(document.getElementById('si110').value), i220:parseFloat(document.getElementById('si220').value), is110:parseFloat(document.getElementById('sis110').value), is220:parseFloat(document.getElementById('sis220').value), iw:parseFloat(document.getElementById('siw').value), ig:parseFloat(document.getElementById('sig').value) };
-    set('cfg', c); alert('設定已儲存');
-}
-function addStaff(){ const n=prompt('姓名'); if(n) { const s=get('staff'); s.push({n:n, r:parseFloat(prompt('時薪','190'))}); set('staff',s); renderSettings(); } }
-function addVendor(){ const n=prompt('廠商名'); if(n) { const t=confirm('按品項輸入?')?'品項':'金額'; const v=get('vendors'); v.push({name:n, type:t, items:[]}); if(t==='品項'){ let iname; while(iname=prompt('品項名(留空結束)')){ v[v.length-1].items.push({n:iname, p:parseFloat(prompt('單價','0'))}); } } set('vendors',v); renderSettings(); } }
-function del(k,i){ const d=get(k); d.splice(i,1); set(k,d); renderSettings(); }
+
 function switchTab(id){
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el=>el.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     const btn = document.querySelector(`.tab-btn[onclick*="${id}"]`);
     if(btn) btn.classList.add('active');
     if(id==='report') genFullReport();
+    if(id==='daily') loadDaily();
     if(id==='settings') renderSettings();
     if(id==='monthly') loadMonthly();
 }
-function backupData(){ const d={}; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.includes(KEY)) d[k]=localStorage.getItem(k); } const b=new Blob([JSON.stringify(d)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`Wazi_Backup.json`; a.click(); }
+
+// 補足其他必要函數 (未更動邏輯)
+function showLiveCalc(type){
+    const c = cfg();
+    const cur = parseFloat(document.getElementById('m'+type).value) || 0;
+    const start = c[{e110:'i110',e220:'i220',se110:'is110',se220:'is220',w:'iw',g:'ig'}[type]] || 0;
+    const diff = Math.max(0, cur - start);
+    const amt = diff * {e110:c.ue,e220:c.ue,se110:c.ue,se220:c.ue,w:c.uw,g:c.ug}[type];
+    document.getElementById('hint_'+type).innerText = `用量: ${diff} | 金額: $${Math.round(amt)}`;
+}
+function calcDaily(){
+    const c = cfg(); const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
+    const cash = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
+    document.getElementById('cSumDisplay').innerText = `$ ${Math.round(cash-c.petty+val('pOnline')+val('pScan')).toLocaleString()}`;
+}
+function renderSettings(){
+    const c = cfg();
+    const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
+    Object.keys(map).forEach(id=>document.getElementById(id).value = c[map[id]]||0);
+    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div>${s.n} ($${s.r}) <button class="btn-danger" style="padding:2px 5px;font-size:10px" onclick="del('staff',${i})">刪</button></div>`).join('');
+    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div>${v.name} (${v.type}) <button class="btn-danger" style="padding:2px 5px;font-size:10px" onclick="del('vendors',${i})">刪</button></div>`).join('');
+}
+function saveSettings(){
+    set('cfg', { ue:parseFloat(document.getElementById('upElec').value), uw:parseFloat(document.getElementById('upWater').value), ug:parseFloat(document.getElementById('upGas').value), petty:parseFloat(document.getElementById('sPetty').value), i110:parseFloat(document.getElementById('si110').value), i220:parseFloat(document.getElementById('si220').value), is110:parseFloat(document.getElementById('sis110').value), is220:parseFloat(document.getElementById('sis220').value), iw:parseFloat(document.getElementById('siw').value), ig:parseFloat(document.getElementById('sig').value) });
+    alert('已儲存');
+}
+function addStaff(){ const n=prompt('姓名'); if(n){ const s=get('staff'); s.push({n:n, r:parseFloat(prompt('時薪','190'))}); set('staff',s); renderSettings(); } }
+function addVendor(){ const n=prompt('廠商名'); if(n){ const t=confirm('按品項輸入?')?'品項':'金額'; const v=get('vendors'); v.push({name:n, type:t, items:[]}); if(t==='品項'){ let iname; while(iname=prompt('品項名(留空結束)')){ v[v.length-1].items.push({n:iname, p:parseFloat(prompt('單價','0'))}); } } set('vendors',v); renderSettings(); } }
+function del(k,i){ const d=get(k); d.splice(i,1); set(k,d); renderSettings(); }
+function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.startsWith(KEY)) d[k]=localStorage.getItem(k); }); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`Wazi_Backup.json`; a.click(); }
 </script>
 </body>
 </html>
