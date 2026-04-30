@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 早餐店管理系統 V22.2</title>
+    <title>Wazi 早餐店管理系統 V22.3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -155,14 +155,21 @@ const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
 
+/* --- 初始化：預設日期邏輯 --- */
 function initApp(){
-    document.getElementById('logDate').valueAsDate = new Date();
-    const curMonth = new Date().toISOString().slice(0, 7);
-    ['rMonth','mMonth','reconMonth'].forEach(id=>document.getElementById(id).value = curMonth);
+    const now = new Date();
+    // 預設今日 (yyyy-mm-dd)
+    document.getElementById('logDate').valueAsDate = now;
+    
+    // 預設當月 (yyyy-mm)
+    const curMonth = now.toISOString().slice(0, 7);
+    ['rMonth','mMonth','reconMonth'].forEach(id => {
+        document.getElementById(id).value = curMonth;
+    });
+
     loadDaily();
 }
 
-/* --- 對帳中心邏輯 --- */
 function renderRecon(){
     const vs = get('vendors');
     let html = "";
@@ -227,7 +234,6 @@ function manualUpdateVendorTotal(){
     set('d_'+date, d); calcRecon(); alert('已更新');
 }
 
-/* --- 月結算功能恢復 --- */
 function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`
@@ -266,7 +272,6 @@ function showLiveCalc(type){
     if(el) el.innerText = `用量: ${diff} | 預估: $${Math.round(amt)}`;
 }
 
-/* --- 報表與其它邏輯 --- */
 function genFullReport(){
     const month = document.getElementById('rMonth').value, m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
     if(!m) { document.getElementById('repArea').style.display='block'; document.getElementById('repArea').innerHTML = "請先完成月結算存檔"; return; }
