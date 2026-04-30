@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 早餐店管理系統 V22.6</title>
+    <title>Wazi 早餐店管理系統 V22.7</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -26,11 +26,6 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         table th, table td { border: 1px solid #eee; padding: 8px; text-align: center; }
         .section-title { border-left: 4px solid #764ba2; padding-left: 8px; margin: 15px 0 10px; font-size: 15px; font-weight: bold; background: #f9f0ff; padding: 5px; }
-        .v-row { display: flex; align-items: center; justify-content: space-between; padding: 8px; background: #fff; border: 1px solid #eee; border-radius: 8px; margin-bottom: 5px; }
-        .v-row b { font-size: 12px; flex: 1; }
-        .v-row input { width: 70px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; text-align: center; font-size: 16px; }
-        .yellow-summary { background: #fffbe6; border: 1px solid #ffe58f; padding: 12px; border-radius: 8px; margin-top: 10px; }
-        .summary-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
         .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
         .calc-hint { font-size: 11px; color: #d9534f; text-align: right; min-height: 15px; }
     </style>
@@ -76,9 +71,9 @@
             <div class="card" id="reconVendorList" style="width: 150px; font-size:12px; max-height: 450px; overflow-y: auto; padding:5px;"></div>
             <div id="reconDetailArea" style="flex: 1;"></div>
         </div>
-        <div id="reconSummaryArea" class="yellow-summary" style="display:none;"></div>
+        <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6; border: 1px solid #ffe58f;"></div>
         <div id="reconAction" class="card" style="display:none;">
-            <h4 style="margin:0 0 5px;">➕ 補錄/修改單筆</h4>
+            <h4 style="margin:0 0 5px;">➕ 補錄單筆</h4>
             <div class="grid"><input type="number" id="addDay" placeholder="幾號"><input type="number" id="addAmt" placeholder="總額"></div>
             <button class="btn btn-primary" onclick="manualUpdateVendorTotal()">儲存修改</button>
         </div>
@@ -93,7 +88,7 @@
     <div id="monthly" class="tab-content">
         <div class="card"><input type="month" id="mMonth" onchange="loadMonthly()"></div>
         <div class="card">
-            <h4 style="margin:0 0 10px;">營運支出與抄表</h4>
+            <h4 style="margin:0 0 10px;">抄表與支出</h4>
             <div class="grid">
                 <div class="form-group"><label>總表110</label><input type="number" id="me110" oninput="showLiveCalc('e110')"><div id="hint_e110" class="calc-hint"></div></div>
                 <div class="form-group"><label>總表220</label><input type="number" id="me220" oninput="showLiveCalc('e220')"><div id="hint_e220" class="calc-hint"></div></div>
@@ -101,12 +96,12 @@
                 <div class="form-group"><label>分表220</label><input type="number" id="mse220" oninput="showLiveCalc('se220')"><div id="hint_se220" class="calc-hint"></div></div>
                 <div class="form-group"><label>水費抄表</label><input type="number" id="mw" oninput="showLiveCalc('w')"><div id="hint_w" class="calc-hint"></div></div>
                 <div class="form-group"><label>瓦斯抄表</label><input type="number" id="mg" oninput="showLiveCalc('g')"><div id="hint_g" class="calc-hint"></div></div>
-                <div class="form-group"><label>租金</label><input type="number" id="mrent"></div>
-                <div class="form-group"><label>公攤費</label><input type="number" id="mpub"></div>
-                <div class="form-group"><label>設備租賃</label><input type="number" id="mlease"></div>
+                <div class="form-group"><label>房租</label><input type="number" id="mrent"></div>
+                <div class="form-group"><label>公攤</label><input type="number" id="mpub"></div>
+                <div class="form-group"><label>設備</label><input type="number" id="mlease"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" id="mtaxb"></div>
             </div>
-            <h4 class="section-title">👥 員工薪資與獎金</h4>
+            <h4 class="section-title">👥 薪資與獎金</h4>
             <div id="mStaffArea"></div>
             <button class="btn btn-success" style="margin-top:15px;" onclick="saveMonthlyAndGo()">🚀 送出並同步報表</button>
         </div>
@@ -131,19 +126,12 @@
                 <div class="form-group"><label>瓦斯始</label><input type="number" id="sig"></div>
             </div>
         </div>
-        <div class="card">
-            <div id="listStaff"></div><button class="btn btn-primary" onclick="addStaff()">+ 員工</button>
-            <hr>
-            <div id="listVendor"></div><button class="btn btn-primary" onclick="addVendor()">+ 廠商</button>
-        </div>
+        <div class="card"><div id="listStaff"></div><button class="btn btn-primary" onclick="addStaff()">+ 員工</button><hr><div id="listVendor"></div><button class="btn btn-primary" onclick="addVendor()">+ 廠商</button></div>
         <button class="btn btn-success" onclick="saveSettings()">💾 儲存設定</button>
     </div>
 
     <div id="data" class="tab-content">
-        <div class="card">
-            <button class="btn btn-primary" onclick="backupData()">📥 備份數據</button>
-            <button class="btn btn-danger" onclick="clearAllData()">⚠️ 清空資料</button>
-        </div>
+        <div class="card"><button class="btn btn-primary" onclick="backupData()">📥 備份數據</button><button class="btn btn-danger" onclick="clearAllData()">⚠️ 清空資料</button></div>
     </div>
 </div>
 
@@ -153,107 +141,29 @@ const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
 
-// --- 初始化 (強制字串切割確保日期格式) ---
 function initApp(){
     const now = new Date();
     const tzOffset = now.getTimezoneOffset() * 60000;
     const localISO = (new Date(Date.now() - tzOffset)).toISOString();
-    
     const today = localISO.slice(0, 10);
     const thisMonth = localISO.slice(0, 7);
-
     document.getElementById('logDate').value = today;
     document.getElementById('reconMonth').value = thisMonth;
     document.getElementById('rMonth').value = thisMonth;
     document.getElementById('mMonth').value = thisMonth;
-
-    loadDaily();
-    renderRecon();
-    loadMonthly();
+    loadDaily(); renderRecon(); loadMonthly();
 }
 
-// --- 對帳中心核心邏輯 ---
-function renderRecon(){
-    const vs = get('vendors');
-    let html = "";
-    vs.forEach(v => {
-        html += `<label style="display:block; padding:5px; border-bottom:1px solid #eee;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="calcRecon()"> ${v.name}</label>`;
-    });
-    document.getElementById('reconVendorList').innerHTML = html;
-    document.getElementById('reconDetailArea').innerHTML = "請勾選左側廠商";
-}
-
-function calcRecon(){
-    const chks = document.querySelectorAll('.recon-chk:checked');
-    const month = document.getElementById('reconMonth').value;
-    if(chks.length === 0){
-        document.getElementById('reconDetailArea').innerHTML = "請勾選左側廠商";
-        document.getElementById('reconSummaryArea').style.display = 'none';
-        document.getElementById('reconAction').style.display = 'none';
-        return;
-    }
-    
-    let selectedNames = Array.from(chks).map(c => c.value);
-    let vendorTotals = {}, dayDetails = {}, totalAll = 0;
-    selectedNames.forEach(name => vendorTotals[name] = 0);
-
-    for(let i=1; i<=31; i++){
-        const date = month + '-' + String(i).padStart(2,'0');
-        const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
-        if(d && d.vs){
-            let dayTotal = 0;
-            for(let key in d.vs){
-                let owner = selectedNames.find(n => key === n || key.startsWith(n + '_'));
-                if(owner){
-                    const p = key.split('_');
-                    const val = parseFloat(d.vs[key]) || 0;
-                    const amt = (p.length === 3 ? val * parseFloat(p[2]) : val);
-                    vendorTotals[owner] += amt; dayTotal += amt; totalAll += amt;
-                }
-            }
-            if(dayTotal > 0) dayDetails[i] = dayTotal;
-        }
-    }
-
-    let tableHtml = `<table><tr><th>日期</th><th>所選合計</th></tr>`;
-    Object.keys(dayDetails).forEach(day => {
-        tableHtml += `<tr><td>${day}號</td><td>$${Math.round(dayDetails[day]).toLocaleString()}</td></tr>`;
-    });
-    tableHtml += `</table>`;
-    document.getElementById('reconDetailArea').innerHTML = tableHtml;
-    
-    let summaryHtml = `<div style="font-weight:bold; margin-bottom:5px;">廠商小計 (${month})</div>`;
-    selectedNames.forEach(name => {
-        summaryHtml += `<div class="summary-line"><span>${name}</span> <span>$${Math.round(vendorTotals[name]).toLocaleString()}</span></div>`;
-    });
-    summaryHtml += `<hr><div style="font-size:16px; color:#d9534f; font-weight:bold; text-align:right;">總金額：$${Math.round(totalAll).toLocaleString()}</div>`;
-    
-    document.getElementById('reconSummaryArea').innerHTML = summaryHtml;
-    document.getElementById('reconSummaryArea').style.display = 'block';
-    document.getElementById('reconAction').style.display = (selectedNames.length === 1) ? 'block' : 'none';
-}
-
-function manualUpdateVendorTotal(){
-    const day = document.getElementById('addDay').value, amt = document.getElementById('addAmt').value;
-    const vn = document.querySelector('.recon-chk:checked').value;
-    if(!day || !amt) return alert('請輸入完整');
-    const date = document.getElementById('reconMonth').value + '-' + String(day).padStart(2,'0');
-    const d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
-    if(!d.vs) d.vs = {};
-    for(let k in d.vs) { if(k.startsWith(vn+'_')) delete d.vs[k]; }
-    d.vs[vn] = parseFloat(amt);
-    set('d_'+date, d); calcRecon(); alert('已手動更新單日金額');
-}
-
-// --- 報表生成 ---
+// --- 報表核心邏輯 (補回統計數據) ---
 function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
-    if(!m) { document.getElementById('repArea').innerHTML = "<p style='color:red; text-align:center;'>尚未完成本月月結算</p>"; return; }
+    if(!m) { document.getElementById('repArea').innerHTML = "<p style='color:red; text-align:center;'>尚未完成月結算</p>"; return; }
     
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={};
     for(let i=1; i<=31; i++){
-        const date = month + '-' + String(i).padStart(2,'0'), d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
+        const date = month + '-' + String(i).padStart(2,'0');
+        const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         if(d){
             const val = (v)=>parseFloat(v)||0;
             const cash = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
@@ -269,11 +179,20 @@ function genFullReport(){
         }
     }
     const tRev = tCash + tOnline + tScan;
+    const avgRev = tDays > 0 ? tRev / tDays : 0;
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
     const eNet = (m.e110-c.i110) + (m.e220-c.i220) - (m.se110-c.is110) - (m.se220-c.is220);
-    const fixed = [{n:'房租',v:m.rent},{n:'公攤(0.75折)',v:m.pub*0.75},{n:'設備',v:m.lease},{n:`電(${Math.round(eNet)}度)`,v:eNet*c.ue},{n:`水`,v:(m.w-c.iw)*c.uw},{n:`瓦斯`,v:(m.g-c.ig)*c.ug},{n:'稅金',v:m.taxb*0.05}];
+    const fixed = [
+        {n:'房租',v:m.rent, raw:`房租`},
+        {n:'公攤(0.75折)',v:m.pub*0.75, raw:`公攤(${m.pub})`},
+        {n:'設備租賃',v:m.lease, raw:`設備`},
+        {n:`電費`,v:eNet*c.ue, raw:`電(${c.i110+c.i220}-${m.e110+m.e220}) ${Math.round(eNet)}度`},
+        {n:`水費`,v:(m.w-c.iw)*c.uw, raw:`水(${c.iw}-${m.w})`},
+        {n:`瓦斯`,v:(m.g-c.ig)*c.ug, raw:`瓦斯(${c.ig}-${m.g})`},
+        {n:'稅金',v:m.taxb*0.05, raw:`稅金`}
+    ];
     let tFixed = 0;
-    const fixedHtml = fixed.map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.n}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
+    const fixedHtml = fixed.map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.raw}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
     const vendorHtml = Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('');
     let tStaff = 0;
     const staffHtml = get('staff').map(s => {
@@ -285,24 +204,67 @@ function genFullReport(){
     document.getElementById('repArea').innerHTML = `
         <div id="pdfPrintTarget" style="padding:10px;">
             <h2 style="text-align:center;">Wazi 報表 - ${month}</h2>
-            <h4 class="section-title">📅 營業額明細</h4>
-            <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}<tr style="background:#f9f9f9; font-weight:bold;"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td>$${Math.round(tOnline).toLocaleString()}</td><td>$${Math.round(tScan).toLocaleString()}</td><td>$${Math.round(tRev).toLocaleString()}</td></tr></table>
-            <h4 class="section-title">📦 廠商明細</h4>
+            <div style="display:flex; justify-content:space-around; background:#eee; padding:10px; border-radius:8px; margin-bottom:10px;">
+                <div style="text-align:center;"><b>營業天數</b><br>${tDays} 天</div>
+                <div style="text-align:center;"><b>總營業額</b><br>$${Math.round(tRev).toLocaleString()}</div>
+                <div style="text-align:center;"><b>日均營收</b><br>$${Math.round(avgRev).toLocaleString()}</div>
+            </div>
+            <h4 class="section-title">📅 營業明細</h4>
+            <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}</table>
+            <h4 class="section-title">📦 廠商支出</h4>
             <table>${vendorHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
-            <h4 class="section-title">🏢 固定支出</h4>
+            <h4 class="section-title">🏢 固定支出 (含度數)</h4>
             <table>${fixedHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
             <h4 class="section-title">👥 人事支出</h4>
             <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>合計</th></tr>${staffHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table>
-            <div class="profit-box">純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>
+            <div class="profit-box">本月預估純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>
         </div>`;
 }
 
-// --- 基礎組件 ---
+// --- 對帳中心功能 ---
+function renderRecon(){
+    const vs = get('vendors');
+    let html = ""; vs.forEach(v => { html += `<label style="display:block; padding:5px;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="calcRecon()"> ${v.name}</label>`; });
+    document.getElementById('reconVendorList').innerHTML = html;
+}
+function calcRecon(){
+    const chks = document.querySelectorAll('.recon-chk:checked'), month = document.getElementById('reconMonth').value;
+    if(chks.length === 0){ document.getElementById('reconDetailArea').innerHTML = "請選廠商"; document.getElementById('reconSummaryArea').style.display = 'none'; document.getElementById('reconAction').style.display = 'none'; return; }
+    let selectedNames = Array.from(chks).map(c => c.value), vendorTotals = {}, dayDetails = {}, totalAll = 0;
+    selectedNames.forEach(name => vendorTotals[name] = 0);
+    for(let i=1; i<=31; i++){
+        const d = JSON.parse(localStorage.getItem(KEY+'d_'+month+'-'+String(i).padStart(2,'0')));
+        if(d && d.vs){
+            let dayTotal = 0;
+            for(let key in d.vs){
+                let owner = selectedNames.find(n => key === n || key.startsWith(n + '_'));
+                if(owner){ const p = key.split('_'), val = parseFloat(d.vs[key])||0, amt = (p.length===3?val*parseFloat(p[2]):val); vendorTotals[owner]+=amt; dayTotal+=amt; totalAll+=amt; }
+            }
+            if(dayTotal > 0) dayDetails[i] = dayTotal;
+        }
+    }
+    let tHtml = `<table><tr><th>日期</th><th>金額</th></tr>`;
+    Object.keys(dayDetails).forEach(day => { tHtml += `<tr><td>${day}號</td><td>$${Math.round(dayDetails[day]).toLocaleString()}</td></tr>`; });
+    document.getElementById('reconDetailArea').innerHTML = tHtml + `</table>`;
+    let sHtml = `<div style="font-weight:bold;">廠商小計</div>`;
+    selectedNames.forEach(n => sHtml += `<div style="display:flex;justify-content:space-between;"><span>${n}</span><span>$${Math.round(vendorTotals[n]).toLocaleString()}</span></div>`);
+    document.getElementById('reconSummaryArea').innerHTML = sHtml + `<hr><b>總計：$${Math.round(totalAll).toLocaleString()}</b>`;
+    document.getElementById('reconSummaryArea').style.display = 'block';
+    document.getElementById('reconAction').style.display = (selectedNames.length === 1) ? 'block' : 'none';
+}
+function manualUpdateVendorTotal(){
+    const d = document.getElementById('addDay').value, a = document.getElementById('addAmt').value, vn = document.querySelector('.recon-chk:checked').value;
+    const date = document.getElementById('reconMonth').value + '-' + String(d).padStart(2,'0');
+    const data = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
+    for(let k in data.vs) { if(k.startsWith(vn+'_')) delete data.vs[k]; }
+    data.vs[vn] = parseFloat(a); set('d_'+date, data); calcRecon(); alert('已更新');
+}
+
+// --- 基礎通用模組 ---
 function loadDaily(){
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
-    let html = "";
-    get('vendors').forEach(v => {
+    let html = ""; get('vendors').forEach(v => {
         if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}"></div>`;
         } else { (v.items||[]).forEach(it => { const key = v.name+'_'+it.n+'_'+it.p; html += `<div class="v-row"><b>${v.name}-${it.n}</b><input type="number" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}"></div>`; }); }
     });
@@ -313,7 +275,7 @@ function saveDaily(){
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs });
-    alert('儲存成功');
+    alert('✅ 今日數據儲存成功');
 }
 function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
@@ -331,11 +293,8 @@ function saveMonthlyAndGo(){
 function switchTab(id){
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el=>el.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    const btn = document.querySelector(`.tab-btn[onclick*="${id}"]`);
-    if(btn) btn.classList.add('active');
-    if(id==='report') genFullReport();
-    if(id==='monthly') loadMonthly();
-    if(id==='recon') renderRecon();
+    const btn = document.querySelector(`.tab-btn[onclick*="${id}"]`); if(btn) btn.classList.add('active');
+    if(id==='report') genFullReport(); if(id==='monthly') loadMonthly(); if(id==='recon') renderRecon(); if(id==='settings') renderSettings();
 }
 function calcDaily(){
     const c = cfg(); const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
@@ -343,7 +302,7 @@ function calcDaily(){
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(cash-c.petty+val('pOnline')+val('pScan')).toLocaleString()}`;
 }
 function showLiveCalc(type){
-    const c = cfg(); const cur = parseFloat(document.getElementById('m'+type).value) || 0;
+    const c = cfg(), cur = parseFloat(document.getElementById('m'+type).value) || 0;
     const start = c[{e110:'i110',e220:'i220',se110:'is110',se220:'is220',w:'iw',g:'ig'}[type]] || 0;
     const diff = Math.max(0, cur - start);
     const amt = diff * (type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug));
@@ -370,8 +329,6 @@ async function exportPDF(){
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
     pdf.save(`Wazi_${document.getElementById('rMonth').value}.pdf`);
 }
-
-// --- 初始化啟動 ---
 window.addEventListener('load', initApp);
 </script>
 </body>
