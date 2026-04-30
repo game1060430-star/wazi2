@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 早餐店管理系統 V21.7 (功能恢復版)</title>
+    <title>Wazi 早餐店管理系統 V21.8</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -35,7 +35,6 @@
         .total-row { background: #fcf8e3; font-weight: bold; }
         .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
         
-        /* 針對對帳中心新增的小樣式 */
         .vendor-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; background: #fafafa; margin-bottom: 4px; border-radius: 4px; }
         .vendor-item.active { background: #764ba2; color: white; }
     </style>
@@ -83,9 +82,12 @@
         </div>
         <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6;"></div>
         <div id="reconAction" class="card" style="display:none;">
-            <h4 style="margin:0 0 5px;">➕ 補錄/修改</h4>
-            <div class="grid"><input type="number" id="addDay" placeholder="日期 (1-31)"><input type="number" id="addAmt" placeholder="金額/數量"></div>
-            <button class="btn btn-primary" onclick="manualAddVendorData()">新增此筆到所選廠商</button>
+            <h4 style="margin:0 0 5px;">➕ 補錄/修改當日總額</h4>
+            <div class="grid">
+                <input type="number" id="addDay" placeholder="日期 (1-31)">
+                <input type="number" id="addAmt" placeholder="總金額 (直接改)">
+            </div>
+            <button class="btn btn-primary" onclick="manualUpdateVendorTotal()">儲存修改 (以金額存檔)</button>
         </div>
     </div>
 
@@ -155,7 +157,7 @@
 
 <script>
 const KEY = "w21_";
-let currentReconVendorKey = ""; // 用於記錄對帳中心目前選中的廠商
+let currentReconVendorName = ""; // 改為記錄廠商主名稱
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
@@ -167,68 +169,79 @@ function initApp(){
     loadDaily();
 }
 
-/* --- 對帳中心功能恢復區 --- */
+/* --- 對帳中心 --- */
 function renderRecon(){
     const vs = get('vendors');
     let html = "";
+    // 這裡只列出廠商名稱，不論類別，讓老闆可以直接針對廠商改總額
     vs.forEach(v => {
-        if(v.type === '金額'){
-            html += `<div class="vendor-item" onclick="selectReconVendor('${v.name}')">${v.name}</div>`;
-        } else {
-            v.items.forEach(it => {
-                const vk = `${v.name}_${it.n}_${it.p}`;
-                html += `<div class="vendor-item" onclick="selectReconVendor('${vk}')">${v.name}-${it.n}</div>`;
-            });
-        }
+        html += `<div class="vendor-item" onclick="selectReconVendor('${v.name}')">${v.name}</div>`;
     });
     document.getElementById('reconVendorList').innerHTML = html;
-    document.getElementById('reconDetailArea').innerHTML = "請從左側點選廠商查看明細";
+    document.getElementById('reconDetailArea').innerHTML = "請點選廠商";
     document.getElementById('reconSummaryArea').style.display = 'none';
     document.getElementById('reconAction').style.display = 'none';
 }
 
-function selectReconVendor(vk){
-    currentReconVendorKey = vk;
+function selectReconVendor(vn){
+    currentReconVendorName = vn;
     document.querySelectorAll('.vendor-item').forEach(el => el.classList.remove('active'));
     event.target.classList.add('active');
     
     const month = document.getElementById('reconMonth').value;
-    let listHtml = `<table style="width:100%; border-collapse:collapse;"><tr><th>日期</th><th>紀錄金額/數量</th></tr>`;
+    let listHtml = `<table><tr><th>日期</th><th>該日結算金額</th></tr>`;
     let totalValue = 0;
-    const parts = vk.split('_');
-    const unitPrice = parts.length === 3 ? parseFloat(parts[2]) : 1;
 
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
-        if(d && d.vs && d.vs[vk]){
-            const val = parseFloat(d.vs[vk]);
-            listHtml += `<tr><td>${i}號</td><td>${val} ${parts.length===3?'份':'元'}</td></tr>`;
-            totalValue += (val * unitPrice);
+        if(d && d.vs){
+            // 抓取該廠商當日的所有紀錄（包含品項換算的與直接金額）
+            let dayVendorSum = 0;
+            for(let key in d.vs){
+                if(key === vn || key.startsWith(vn + '_')){
+                    const parts = key.split('_');
+                    const price = parts.length === 3 ? parseFloat(parts[2]) : 1;
+                    dayVendorSum += (parseFloat(d.vs[key]) * price);
+                }
+            }
+            if(dayVendorSum > 0){
+                listHtml += `<tr><td>${i}號</td><td>$${Math.round(dayVendorSum).toLocaleString()}</td></tr>`;
+                totalValue += dayVendorSum;
+            }
         }
     }
     listHtml += `</table>`;
     document.getElementById('reconDetailArea').innerHTML = listHtml;
     document.getElementById('reconSummaryArea').style.display = 'block';
-    document.getElementById('reconSummaryArea').innerHTML = `<b>${vk.replace(/_/g,'-')}</b><br>本月累積總額：$${Math.round(totalValue).toLocaleString()}`;
+    document.getElementById('reconSummaryArea').innerHTML = `<b>${vn}</b><br>當月累積總額：$${Math.round(totalValue).toLocaleString()}`;
     document.getElementById('reconAction').style.display = 'block';
 }
 
-function manualAddVendorData(){
+// 核心修改：無論原本是品項還是金額，對帳中心統一用「總額」存入該廠商名下
+function manualUpdateVendorTotal(){
     const day = document.getElementById('addDay').value;
     const amt = document.getElementById('addAmt').value;
-    if(!day || !amt || !currentReconVendorKey) return alert('請選擇廠商並輸入日期與金額');
+    if(!day || !amt || !currentReconVendorName) return alert('請輸入完整');
+    
     const month = document.getElementById('reconMonth').value;
     const date = month + '-' + String(day).padStart(2,'0');
     const d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     if(!d.vs) d.vs = {};
-    d.vs[currentReconVendorKey] = parseFloat(amt);
-    set('d_'+date, d);
-    selectReconVendor(currentReconVendorKey);
-    alert('補錄儲存成功');
-}
-/* --- 對帳中心功能恢復結束 --- */
 
+    // 刪除該廠商當日舊的細項紀錄（如果有品項紀錄會被清除，統一改為這個總額）
+    for(let key in d.vs){
+        if(key.startsWith(currentReconVendorName + '_')) delete d.vs[key];
+    }
+    // 存入總金額到廠商主鍵值中
+    d.vs[currentReconVendorName] = parseFloat(amt);
+    
+    set('d_'+date, d);
+    selectReconVendor(currentReconVendorName);
+    alert('已更新為當日總額');
+}
+
+/* --- 報表中心 (V21.6 邏輯) --- */
 function genFullReport(){
     const month = document.getElementById('rMonth').value, m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
     if(!m) { document.getElementById('repArea').style.display='block'; document.getElementById('repArea').innerHTML = "<div class='card'>請先完成月結算存檔</div>"; return; }
@@ -272,7 +285,7 @@ function genFullReport(){
         const baseSalary = hours * s.r;
         const bonusAmt = baseSalary * (bonusPct / 100);
         const totalSalary = baseSalary + bonusAmt;
-        staffDetailHtml += `<tr><td>${s.n}</td><td>${hours} hr</td><td>$${s.r}/hr</td><td>${bonusPct}% ($${Math.round(bonusAmt)})</td><td>$${Math.round(totalSalary).toLocaleString()}</td></tr>`;
+        staffDetailHtml += `<tr><td>${s.n}</td><td>${hours} hr</td><td>$${s.r}/hr</td><td>${bonusPct}%</td><td>$${Math.round(totalSalary).toLocaleString()}</td></tr>`;
         tStaff += totalSalary;
     });
 
@@ -283,7 +296,6 @@ function genFullReport(){
             <h3 class="section-title">📅 每日明細</h3>
             <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}
             <tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td>$${Math.round(tOnline).toLocaleString()}</td><td>$${Math.round(tScan).toLocaleString()}</td><td>$${Math.round(tCash+tOnline+tScan).toLocaleString()}</td></tr></table>
-            <div style="text-align:right;margin:5px;font-weight:bold;">天數:${tDays} | 日均:$${tDays>0?Math.round((tCash+tOnline+tScan)/tDays).toLocaleString():0}</div>
             <h3 class="section-title">📦 廠商支出</h3>
             <table><tr><th>廠商</th><th>金額</th></tr>${vendorDetailHtml}<tr class="total-row"><td>總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
             <h3 class="section-title">🏢 固定支出</h3>
@@ -303,7 +315,7 @@ async function exportPDF(){
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
     pdf.save(`Wazi_${month}.pdf`);
     const c = cfg(); c.i110=m.e110; c.i220=m.e220; c.is110=m.se110; c.is220=m.se220; c.iw=m.w; c.ig=m.g; set('cfg',c);
-    alert('PDF 已下載，起始度數同步完成。');
+    alert('PDF 下載完成');
 }
 
 function loadDaily(){
@@ -349,10 +361,7 @@ function saveMonthlyAndGo(){
 }
 
 function clearAllData(){
-    if(confirm('警告：這將永久刪除所有記帳、員工、廠商及設定資料！確定嗎？')){
-        Object.keys(localStorage).forEach(k => { if(k.startsWith(KEY)) localStorage.removeItem(k); });
-        location.reload();
-    }
+    if(confirm('警告：確定要清空所有資料嗎？')){ localStorage.clear(); location.reload(); }
 }
 
 function switchTab(id){
@@ -364,7 +373,7 @@ function switchTab(id){
     if(id==='daily') loadDaily();
     if(id==='settings') renderSettings();
     if(id==='monthly') loadMonthly();
-    if(id==='recon') renderRecon(); // 切換到對帳中心時渲染列表
+    if(id==='recon') renderRecon();
 }
 
 function showLiveCalc(type){
@@ -398,3 +407,4 @@ function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.s
 </script>
 </body>
 </html>
+
