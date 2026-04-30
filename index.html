@@ -3,132 +3,393 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 記帳系統</title>
+    <title>Wazi 專業記帳系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* 這裡保留你原本所有的 CSS 樣式，完全不動 */
         * { box-sizing: border-box; }
-        html, body { overflow-x: hidden; width: 100%; position: relative; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 10px; -webkit-text-size-adjust: 100%; }
-        .container { max-width: 1200px; margin: 0 auto; width: 100%; overflow-x: hidden; padding: 5px; }
-        .login-container { display: none; } /* 修改：預設隱藏登入 */
-        #mainScreen { display: block; } /* 修改：預設顯示主畫面 */
-        .header { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { color: #333; font-size: 1.4em; margin: 0; }
-        .logout-btn { display: none; } /* 修改：隱藏登出 */
-        .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-        .tab-btn { padding: 10px 5px; background: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; color: #666; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size: 0.85em; }
-        .tab-btn.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .content { background: white; border-radius: 15px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); min-height: 60vh; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 10px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 15px; }
+        .tab-btn { padding: 10px 5px; background: #ddd; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; }
+        .tab-btn.active { background: #667eea; color: white; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-success { background: #51cf66; color: white; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-toggle { background: #eee; color: #666; font-size: 12px; padding: 5px; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        h2, h3, h4 { text-align: center; margin-bottom: 15px; color: #333; }
-        .form-group { margin-bottom: 15px; text-align: center; }
-        .form-group label { display: block; margin-bottom: 5px; color: #666; font-weight: bold; font-size: 0.9em; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #eee; border-radius: 8px; font-size: 16px; text-align: center; }
-        .card { background: #f9f9f9; border-radius: 10px; padding: 15px; border-left: 4px solid #667eea; margin-bottom: 15px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; text-align: center; display: inline-block; }
-        .btn-success { background: #51cf66; color: white; }
-        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 10px; }
-        .stat-card .value { font-size: 1.4em; font-weight: bold; }
+        .stat-card { background: #667eea; color: white; padding: 15px; border-radius: 12px; text-align: center; }
+        .value { font-size: 24px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table th, table td { border: 1px solid #eee; padding: 8px; text-align: center; }
     </style>
 </head>
 <body>
-    <div id="mainScreen" class="container">
-        <div class="header">
-            <h1>🍞 記帳系統</h1>
-        </div>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('daily-log')">每日記帳</button>
-            <button class="tab-btn" onclick="switchTab('monthly')">月結算</button>
-            <button class="tab-btn" onclick="switchTab('reports')">報表中心</button>
-            <button class="tab-btn" onclick="switchTab('settings')">系統設定</button>
-        </div>
-
-        <div class="content">
-            <div id="daily-log" class="tab-content active">
-                <h3>📝 每日記帳</h3>
-                <div class="form-group">
-                    <input type="date" id="logDate">
-                </div>
-
-                <div class="card" style="border-left-color:#51cf66;">
-                    <h4>💰 收入記錄</h4>
-                    <div class="grid">
-                        <div class="form-group"><label>現金總額</label><input type="number" id="cashInput" inputmode="decimal"></div>
-                        <div class="form-group"><label>網路支付</label><input type="number" id="onlineAmount" inputmode="decimal"></div>
-                        <div class="form-group"><label>掃碼支付</label><input type="number" id="scanAmount" inputmode="decimal"></div>
-                    </div>
-                </div>
-                <button class="btn btn-success" onclick="saveDailyLog()" style="width:100%;">✅ 保存今日記帳</button>
-            </div>
-
-            <div id="monthly" class="tab-content">
-                <h3>📋 月結算輸入</h3>
-                <div class="form-group">
-                    <input type="month" id="settlementMonth">
-                </div>
-                <div class="card" style="border-left-color:#ff6b6b;">
-                    <h4>公攤與能源</h4>
-                    <div class="grid">
-                        <div class="form-group"><label>公攤費用總額</label><input type="number" id="publicExAmount" inputmode="decimal"></div>
-                        <div class="form-group"><label>水費度數</label><input type="number" id="waterUsage" inputmode="decimal"></div>
-                    </div>
-                </div>
-                <button class="btn btn-success" onclick="saveMonthlyData()" style="width:100%;">儲存月結</button>
-            </div>
-
-            <div id="reports" class="tab-content">
-                <h3>📈 報表中心</h3>
-                <div class="form-group"><input type="month" id="reportMonth" onchange="generateReport()"></div>
-                <div id="reportContent" class="card">請選擇月份查詢...</div>
-            </div>
-
-            <div id="settings" class="tab-content">
-                <h3>⚙️ 系統設定</h3>
-                <div class="card">
-                    <label>公攤費扣除比例: 75%</label>
-                </div>
-            </div>
-        </div>
+<div class="container">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('daily')">每日記帳</button>
+        <button class="tab-btn" onclick="switchTab('monthly')">月結算</button>
+        <button class="tab-btn" onclick="switchTab('report')">報表</button>
+        <button class="tab-btn" onclick="switchTab('settings')">設定</button>
     </div>
 
-    <script>
-        // --- 核心邏輯保持不動 ---
+    <div id="daily" class="tab-content active">
+        <div class="card">
+            <input type="date" id="logDate" onchange="loadDailyData()" style="width:100%; padding:10px; font-size:18px;">
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0;">💰 現金收入</h4>
+                <button class="btn-toggle" onclick="toggleCashMode()">切換模式 (秤重/直輸)</button>
+            </div>
+            
+            <div id="cashWeightMode">
+                <div class="grid">
+                    <div class="form-group"><label>千鈔(張)</label><input type="number" id="c1000" oninput="calcDaily()"></div>
+                    <div class="form-group"><label>百鈔(張)</label><input type="number" id="c100" oninput="calcDaily()"></div>
+                    <div class="form-group"><label>$50(重量)</label><input type="number" id="w50" oninput="calcDaily()"></div>
+                    <div class="form-group"><label>$10(重量)</label><input type="number" id="w10" oninput="calcDaily()"></div>
+                    <div class="form-group"><label>$5(重量)</label><input type="number" id="w5" oninput="calcDaily()"></div>
+                </div>
+            </div>
+            <div id="cashDirectMode" style="display:none;">
+                <div class="form-group"><label>現金總金額</label><input type="number" id="cashDirect" oninput="calcDaily()"></div>
+            </div>
+            <div style="text-align:right; font-weight:bold; color:#667eea; margin-top:5px;">現金合計: <span id="cashSumDisp">0</span></div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <label style="font-size:12px;">📱 網路支付</label>
+                <input type="number" id="onlineIn" oninput="calcDaily()">
+            </div>
+            <div class="card">
+                <label style="font-size:12px;">📸 掃碼支付</label>
+                <input type="number" id="scanIn" oninput="calcDaily()">
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div>今日淨營業額 (扣除零用金)</div>
+            <div class="value" id="dailyNet">NT$ 0</div>
+        </div>
+
+        <h4 style="text-align:center;">📦 廠商進貨</h4>
+        <div id="vendorDailyList"></div>
         
-        // 1. 自動預設日期為今天
-        document.getElementById('logDate').valueAsDate = new Date();
+        <button class="btn btn-success" onclick="saveDaily()">✅ 保存今日記帳</button>
+    </div>
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
-        }
+    <div id="monthly" class="tab-content">
+        <div class="card">
+            <input type="month" id="monthSel" onchange="loadMonthlyData()">
+        </div>
+        
+        <div class="card">
+            <h4>👥 員工工時</h4>
+            <div id="staffMonthlyList"></div>
+        </div>
 
-        // 這裡需要配合你原本的 app.js
-        // 如果你原本是用 localStorage 存資料，請確保欄位名稱正確
-        function saveDailyLog() {
-            const date = document.getElementById('logDate').value;
-            const data = {
-                cash: document.getElementById('cashInput').value,
-                online: document.getElementById('onlineAmount').value,
-                scan: document.getElementById('scanAmount').value
-            };
-            localStorage.setItem('daily_' + date, JSON.stringify(data));
-            alert('今日資料已儲存！');
-        }
+        <div class="card">
+            <h4>⚡ 能源與固定支出</h4>
+            <div class="grid">
+                <div class="form-group"><label>電費總表度數</label><input type="number" id="mElec"></div>
+                <div class="form-group"><label>電費分表度數</label><input type="number" id="mElecSub"></div>
+                <div class="form-group"><label>水費度數</label><input type="number" id="mWater"></div>
+                <div class="form-group"><label>公攤費</label><input type="number" id="mPublic"></div>
+                <div class="form-group"><label>租金</label><input type="number" id="mRent"></div>
+                <div class="form-group"><label>營業稅</label><input type="number" id="mTax"></div>
+                <div class="form-group"><label>設備租賃</label><input type="number" id="mLease"></div>
+            </div>
+        </div>
+        <button class="btn btn-success" onclick="saveMonthly()">💾 儲存月結資料並更新起始度數</button>
+    </div>
 
-        function saveMonthlyData() {
-            const month = document.getElementById('settlementMonth').value;
-            const data = {
-                public: document.getElementById('publicExAmount').value,
-                water: document.getElementById('waterUsage').value
-            };
-            localStorage.setItem('monthly_' + month, JSON.stringify(data));
-            alert(month + ' 月結資料已儲存！');
+    <div id="report" class="tab-content">
+        <div class="card"><input type="month" id="repMonth" onchange="genReport()"></div>
+        <div id="repArea" class="card"></div>
+        <button class="btn btn-primary" onclick="exportPDF()">📥 輸出 PDF 報表</button>
+    </div>
+
+    <div id="settings" class="tab-content">
+        <div class="card">
+            <h4>⚙️ 系統參數</h4>
+            <div class="grid">
+                <div class="form-group"><label>零用金</label><input type="number" id="sPetty" value="8000"></div>
+                <div class="form-group"><label>手續費(%)</label><input type="number" id="sFee" value="2.4"></div>
+                <div class="form-group"><label>員工獎金(%)</label><input type="number" id="sBonus" value="4"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h4>📏 起始度數</h4>
+            <div class="grid">
+                <div class="form-group"><label>電費總表</label><input type="number" id="sInitE"></div>
+                <div class="form-group"><label>電費分表</label><input type="number" id="sInitESub"></div>
+                <div class="form-group"><label>水費</label><input type="number" id="sInitW"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h4>👥 員工管理</h4>
+            <div id="staffList"></div>
+            <hr>
+            <input type="text" id="newStaffName" placeholder="姓名">
+            <input type="number" id="newStaffRate" placeholder="時薪">
+            <button class="btn btn-primary" onclick="addStaff()">新增員工</button>
+        </div>
+        <div class="card">
+            <h4>📦 廠商管理</h4>
+            <div id="vendorList"></div>
+            <hr>
+            <input type="text" id="newVendorName" placeholder="廠商名稱">
+            <button class="btn btn-primary" onclick="addVendor()">新增廠商</button>
+        </div>
+        <button class="btn btn-success" onclick="saveSettings()">儲存所有設定</button>
+    </div>
+</div>
+
+<script>
+// --- 初始化與資料庫 ---
+const DB = {
+    get: (k) => JSON.parse(localStorage.getItem('wazi_'+k)) || [],
+    set: (k, v) => localStorage.setItem('wazi_'+k, JSON.stringify(v)),
+    cfg: () => JSON.parse(localStorage.getItem('wazi_cfg')) || {petty:8000, fee:2.4, bonus:4, ie:0, ies:0, iw:0}
+};
+
+let isDirectMode = false;
+document.getElementById('logDate').valueAsDate = new Date();
+
+function switchTab(id) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+    if(id==='settings') renderSettings();
+    if(id==='daily') loadDailyData();
+    if(id==='monthly') loadMonthlyData();
+}
+
+function toggleCashMode() {
+    isDirectMode = !isDirectMode;
+    document.getElementById('cashWeightMode').style.display = isDirectMode ? 'none' : 'block';
+    document.getElementById('cashDirectMode').style.display = isDirectMode ? 'block' : 'none';
+}
+
+// --- 邏輯計算 ---
+function calcDaily() {
+    const cfg = DB.cfg();
+    let cashTotal = 0;
+    
+    if(isDirectMode) {
+        cashTotal = parseFloat(document.getElementById('cashDirect').value) || 0;
+    } else {
+        const c1000 = (parseFloat(document.getElementById('c1000').value) || 0) * 1000;
+        const c100 = (parseFloat(document.getElementById('c100').value) || 0) * 100;
+        const w50 = (Math.max(0, (parseFloat(document.getElementById('w50').value) || 0) - 26)) * 5;
+        const w10 = (Math.max(0, (parseFloat(document.getElementById('w10').value) || 0) - 26)) * 1.33;
+        const w5 = (Math.max(0, (parseFloat(document.getElementById('w5').value) || 0) - 26)) * 1.1;
+        cashTotal = c1000 + c100 + w50 + w10 + w5;
+    }
+    
+    document.getElementById('cashSumDisp').innerText = Math.round(cashTotal).toLocaleString();
+    
+    const online = parseFloat(document.getElementById('onlineIn').value) || 0;
+    const scan = parseFloat(document.getElementById('scanIn').value) || 0;
+    const feeRate = (1 - cfg.fee/100);
+    
+    const net = (cashTotal - cfg.petty) + (online * feeRate) + (scan * feeRate);
+    document.getElementById('dailyNet').innerText = `NT$ ${Math.round(net).toLocaleString()}`;
+}
+
+// --- 資料存取 ---
+function saveDaily() {
+    const date = document.getElementById('logDate').value;
+    const vData = {};
+    document.querySelectorAll('.v-daily').forEach(i => vData[i.dataset.name] = parseFloat(i.value)||0);
+    
+    const data = {
+        c1000: document.getElementById('c1000').value,
+        c100: document.getElementById('c100').value,
+        w50: document.getElementById('w50').value,
+        w10: document.getElementById('w10').value,
+        w5: document.getElementById('w5').value,
+        direct: document.getElementById('cashDirect').value,
+        mode: isDirectMode,
+        online: document.getElementById('onlineIn').value,
+        scan: document.getElementById('scanIn').value,
+        vendors: vData
+    };
+    localStorage.setItem('d_'+date, JSON.stringify(data));
+    alert('今日儲存成功！');
+}
+
+function loadDailyData() {
+    const date = document.getElementById('logDate').value;
+    const d = JSON.parse(localStorage.getItem('d_'+date)) || {};
+    document.getElementById('c1000').value = d.c1000 || '';
+    document.getElementById('c100').value = d.c100 || '';
+    document.getElementById('w50').value = d.w50 || '';
+    document.getElementById('w10').value = d.w10 || '';
+    document.getElementById('w5').value = d.w5 || '';
+    document.getElementById('cashDirect').value = d.direct || '';
+    document.getElementById('onlineIn').value = d.online || '';
+    document.getElementById('scanIn').value = d.scan || '';
+    
+    const vendors = DB.get('vendors');
+    document.getElementById('vendorDailyList').innerHTML = vendors.map(v => `
+        <div class="card"><label>${v.name}</label>
+        <input type="number" class="v-daily" data-name="${v.name}" value="${d.vendors?.[v.name] || ''}"></div>
+    `).join('');
+    calcDaily();
+}
+
+function loadMonthlyData() {
+    const month = document.getElementById('monthSel').value;
+    if(!month) return;
+    const m = JSON.parse(localStorage.getItem('m_'+month)) || {staff:{}};
+    const staffs = DB.get('staff');
+    
+    document.getElementById('staffMonthlyList').innerHTML = staffs.map(s => `
+        <div class="card"><b>${s.name}</b>
+        <input type="number" class="m-hours" data-name="${s.name}" placeholder="輸入時數" value="${m.staff[s.name] || ''}"></div>
+    `).join('');
+    
+    document.getElementById('mElec').value = m.e || '';
+    document.getElementById('mElecSub').value = m.es || '';
+    document.getElementById('mWater').value = m.w || '';
+    document.getElementById('mPublic').value = m.pub || '';
+    document.getElementById('mRent').value = m.rent || '';
+    document.getElementById('mTax').value = m.tax || '';
+    document.getElementById('mLease').value = m.lease || '';
+}
+
+function saveMonthly() {
+    const month = document.getElementById('monthSel').value;
+    const sData = {};
+    document.querySelectorAll('.m-hours').forEach(i => sData[i.dataset.name] = parseFloat(i.value)||0);
+    
+    const data = {
+        staff: sData,
+        e: parseFloat(document.getElementById('mElec').value)||0,
+        es: parseFloat(document.getElementById('mElecSub').value)||0,
+        w: parseFloat(document.getElementById('mWater').value)||0,
+        pub: parseFloat(document.getElementById('mPublic').value)||0,
+        rent: parseFloat(document.getElementById('mRent').value)||0,
+        tax: parseFloat(document.getElementById('mTax').value)||0,
+        lease: parseFloat(document.getElementById('mLease').value)||0
+    };
+    localStorage.setItem('m_'+month, JSON.stringify(data));
+    alert('月結儲存成功！起始度數將在輸出報表時自動更新。');
+}
+
+// --- 設定 ---
+function renderSettings() {
+    const c = DB.cfg();
+    document.getElementById('sPetty').value = c.petty;
+    document.getElementById('sFee').value = c.fee;
+    document.getElementById('sBonus').value = c.bonus;
+    document.getElementById('sInitE').value = c.ie;
+    document.getElementById('sInitESub').value = c.ies;
+    document.getElementById('sInitW').value = c.iw;
+    
+    document.getElementById('staffList').innerHTML = DB.get('staff').map((s,i)=>`<div>${s.name} ($${s.rate}) <button onclick="del('staff',${i})">X</button></div>`).join('');
+    document.getElementById('vendorList').innerHTML = DB.get('vendors').map((v,i)=>`<div>${v.name} <button onclick="del('vendors',${i})">X</button></div>`).join('');
+}
+
+function saveSettings() {
+    const cfg = {
+        petty: parseFloat(document.getElementById('sPetty').value),
+        fee: parseFloat(document.getElementById('sFee').value),
+        bonus: parseFloat(document.getElementById('sBonus').value),
+        ie: parseFloat(document.getElementById('sInitE').value),
+        ies: parseFloat(document.getElementById('sInitESub').value),
+        iw: parseFloat(document.getElementById('sInitW').value)
+    };
+    DB.set('cfg', cfg);
+    alert('設定已儲存！');
+}
+
+function addStaff() {
+    const n = document.getElementById('newStaffName').value;
+    const r = document.getElementById('newStaffRate').value;
+    if(!n||!r) return;
+    const s = DB.get('staff'); s.push({name:n, rate:parseFloat(r)}); DB.set('staff',s);
+    renderSettings();
+}
+
+function addVendor() {
+    const n = document.getElementById('newVendorName').value;
+    if(!n) return;
+    const v = DB.get('vendors'); v.push({name:n}); DB.set('vendors',v);
+    renderSettings();
+}
+
+function del(k,i) { const d = DB.get(k); d.splice(i,1); DB.set(k,d); renderSettings(); }
+
+// --- 報表中心 ---
+function genReport() {
+    const month = document.getElementById('repMonth').value;
+    const cfg = DB.cfg();
+    const m = JSON.parse(localStorage.getItem('m_'+month)) || {staff:{}};
+    
+    let totalNet = 0;
+    for(let i=1; i<=31; i++) {
+        const day = `${month}-${String(i).padStart(2,'0')}`;
+        const d = JSON.parse(localStorage.getItem('d_'+day));
+        if(d) {
+            let cash = d.mode ? (parseFloat(d.direct)||0) : 
+                ((parseFloat(d.c1000)||0)*1000 + (parseFloat(d.c100)||0)*100 + Math.max(0,parseFloat(d.w50)-26)*5 + Math.max(0,parseFloat(d.w10)-26)*1.33 + Math.max(0,parseFloat(d.w5)-26)*1.1);
+            totalNet += (cash - cfg.petty) + (parseFloat(d.online)||0)*(1-cfg.fee/100) + (parseFloat(d.scan)||0)*(1-cfg.fee/100);
         }
-    </script>
+    }
+
+    let staffHtml = '';
+    let staffTotal = 0;
+    DB.get('staff').forEach(s => {
+        const hr = m.staff[s.name] || 0;
+        const pay = (hr * s.rate) * (1 + cfg.bonus/100);
+        staffTotal += pay;
+        staffHtml += `<tr><td>${s.name}</td><td>${hr}</td><td>$${Math.round(pay)}</td></tr>`;
+    });
+
+    document.getElementById('repArea').innerHTML = `
+        <h3 style="text-align:center;">Wazi ${month} 營運報表</h3>
+        <table>
+            <tr><th>總營收(淨)</th><td>$${Math.round(totalNet).toLocaleString()}</td></tr>
+            <tr><th>員工總薪資</th><td>$${Math.round(staffTotal).toLocaleString()}</td></tr>
+            <tr><th>公攤/租金/稅</th><td>$${(m.pub+m.rent+m.tax+m.lease).toLocaleString()}</td></tr>
+            <tr><th>能源使用量</th><td>電:${m.e-cfg.ie} / 分:${m.es-cfg.ies} / 水:${m.w-cfg.iw}</td></tr>
+        </table>
+        <h4 style="margin:10px 0 5px;">員工明細</h4>
+        <table><tr><th>姓名</th><th>工時</th><th>實發</th></tr>${staffHtml}</table>
+    `;
+}
+
+async function exportPDF() {
+    const month = document.getElementById('repMonth').value;
+    const m = JSON.parse(localStorage.getItem('m_'+month));
+    if(!m) return alert('請先選擇月份並確認有資料');
+    
+    // 更新起始度數
+    const cfg = DB.cfg();
+    cfg.ie = m.e; cfg.ies = m.es; cfg.iw = m.w;
+    DB.set('cfg', cfg);
+    
+    const el = document.getElementById('repArea');
+    const canvas = await html2canvas(el);
+    const pdf = new jspdf.jsPDF();
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 190, 0);
+    pdf.save(`Wazi_${month}.pdf`);
+    alert('PDF 已輸出，起始度數已更新！');
+    renderSettings();
+}
+</script>
 </body>
 </html>
