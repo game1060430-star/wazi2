@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 早餐店管理系統 V22.5</title>
+    <title>Wazi 早餐店管理系統 V22.6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* 樣式保持不變，維持老闆習慣的介面 */
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
         body { background: #f4f7f6; margin: 0; padding: 10px; color: #333; font-size: 14px; }
         .container { max-width: 850px; margin: 0 auto; }
@@ -30,8 +29,10 @@
         .v-row { display: flex; align-items: center; justify-content: space-between; padding: 8px; background: #fff; border: 1px solid #eee; border-radius: 8px; margin-bottom: 5px; }
         .v-row b { font-size: 12px; flex: 1; }
         .v-row input { width: 70px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; text-align: center; font-size: 16px; }
+        .yellow-summary { background: #fffbe6; border: 1px solid #ffe58f; padding: 12px; border-radius: 8px; margin-top: 10px; }
+        .summary-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
         .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
-        .calc-hint { font-size: 11px; color: #d9534f; text-align: right; }
+        .calc-hint { font-size: 11px; color: #d9534f; text-align: right; min-height: 15px; }
     </style>
 </head>
 <body>
@@ -75,7 +76,12 @@
             <div class="card" id="reconVendorList" style="width: 150px; font-size:12px; max-height: 450px; overflow-y: auto; padding:5px;"></div>
             <div id="reconDetailArea" style="flex: 1;"></div>
         </div>
-        <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6;"></div>
+        <div id="reconSummaryArea" class="yellow-summary" style="display:none;"></div>
+        <div id="reconAction" class="card" style="display:none;">
+            <h4 style="margin:0 0 5px;">➕ 補錄/修改單筆</h4>
+            <div class="grid"><input type="number" id="addDay" placeholder="幾號"><input type="number" id="addAmt" placeholder="總額"></div>
+            <button class="btn btn-primary" onclick="manualUpdateVendorTotal()">儲存修改</button>
+        </div>
     </div>
 
     <div id="report" class="tab-content">
@@ -147,16 +153,15 @@ const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
 
-// --- 強制初始化日期與月份 ---
+// --- 初始化 (強制字串切割確保日期格式) ---
 function initApp(){
     const now = new Date();
-    const tzOffset = now.getTimezoneOffset() * 60000; 
-    const localISOTime = (new Date(Date.now() - tzOffset)).toISOString();
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    const localISO = (new Date(Date.now() - tzOffset)).toISOString();
     
-    const today = localISOTime.slice(0, 10); // yyyy-mm-dd
-    const thisMonth = localISOTime.slice(0, 7); // yyyy-mm
+    const today = localISO.slice(0, 10);
+    const thisMonth = localISO.slice(0, 7);
 
-    // 設定日期欄位
     document.getElementById('logDate').value = today;
     document.getElementById('reconMonth').value = thisMonth;
     document.getElementById('rMonth').value = thisMonth;
@@ -167,67 +172,112 @@ function initApp(){
     loadMonthly();
 }
 
-// --- 報表核心：抓取廠商與固定支出 ---
-function genFullReport(){
-    const month = document.getElementById('rMonth').value;
-    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month));
-    const c = cfg();
-    
-    if(!m) {
-        document.getElementById('repArea').innerHTML = "<div style='color:red; text-align:center; padding:20px;'>⚠️ 請先完成「月結算」分頁的數據存檔，才能生成報表。</div>";
+// --- 對帳中心核心邏輯 ---
+function renderRecon(){
+    const vs = get('vendors');
+    let html = "";
+    vs.forEach(v => {
+        html += `<label style="display:block; padding:5px; border-bottom:1px solid #eee;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="calcRecon()"> ${v.name}</label>`;
+    });
+    document.getElementById('reconVendorList').innerHTML = html;
+    document.getElementById('reconDetailArea').innerHTML = "請勾選左側廠商";
+}
+
+function calcRecon(){
+    const chks = document.querySelectorAll('.recon-chk:checked');
+    const month = document.getElementById('reconMonth').value;
+    if(chks.length === 0){
+        document.getElementById('reconDetailArea').innerHTML = "請勾選左側廠商";
+        document.getElementById('reconSummaryArea').style.display = 'none';
+        document.getElementById('reconAction').style.display = 'none';
         return;
     }
-
-    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={};
     
-    // 遍歷當月每日資料
+    let selectedNames = Array.from(chks).map(c => c.value);
+    let vendorTotals = {}, dayDetails = {}, totalAll = 0;
+    selectedNames.forEach(name => vendorTotals[name] = 0);
+
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
-        if(d){
-            const val = (v)=>parseFloat(v)||0;
-            const cRaw = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
-            const dayT = cRaw + val(d.pOnline) + val(d.pScan);
-            if(dayT !== 0) {
-                dayRows += `<tr><td>${i}</td><td>$${Math.round(cRaw).toLocaleString()}</td><td>$${val(d.pOnline).toLocaleString()}</td><td>$${val(d.pScan).toLocaleString()}</td><td>$${Math.round(dayT).toLocaleString()}</td></tr>`;
-                tCash += cRaw; tOnline += val(d.pOnline); tScan += val(d.pScan); tDays++;
-            }
-            if(d.vs) {
-                for(let k in d.vs){
-                    const p=k.split('_');
-                    const amt = p.length===3 ? (parseFloat(d.vs[k])*parseFloat(p[2])) : parseFloat(d.vs[k]);
-                    vSum[p[0]] = (vSum[p[0]]||0) + amt;
+        if(d && d.vs){
+            let dayTotal = 0;
+            for(let key in d.vs){
+                let owner = selectedNames.find(n => key === n || key.startsWith(n + '_'));
+                if(owner){
+                    const p = key.split('_');
+                    const val = parseFloat(d.vs[key]) || 0;
+                    const amt = (p.length === 3 ? val * parseFloat(p[2]) : val);
+                    vendorTotals[owner] += amt; dayTotal += amt; totalAll += amt;
                 }
             }
+            if(dayTotal > 0) dayDetails[i] = dayTotal;
         }
     }
 
-    const totalRev = tCash + tOnline + tScan;
+    let tableHtml = `<table><tr><th>日期</th><th>所選合計</th></tr>`;
+    Object.keys(dayDetails).forEach(day => {
+        tableHtml += `<tr><td>${day}號</td><td>$${Math.round(dayDetails[day]).toLocaleString()}</td></tr>`;
+    });
+    tableHtml += `</table>`;
+    document.getElementById('reconDetailArea').innerHTML = tableHtml;
+    
+    let summaryHtml = `<div style="font-weight:bold; margin-bottom:5px;">廠商小計 (${month})</div>`;
+    selectedNames.forEach(name => {
+        summaryHtml += `<div class="summary-line"><span>${name}</span> <span>$${Math.round(vendorTotals[name]).toLocaleString()}</span></div>`;
+    });
+    summaryHtml += `<hr><div style="font-size:16px; color:#d9534f; font-weight:bold; text-align:right;">總金額：$${Math.round(totalAll).toLocaleString()}</div>`;
+    
+    document.getElementById('reconSummaryArea').innerHTML = summaryHtml;
+    document.getElementById('reconSummaryArea').style.display = 'block';
+    document.getElementById('reconAction').style.display = (selectedNames.length === 1) ? 'block' : 'none';
+}
+
+function manualUpdateVendorTotal(){
+    const day = document.getElementById('addDay').value, amt = document.getElementById('addAmt').value;
+    const vn = document.querySelector('.recon-chk:checked').value;
+    if(!day || !amt) return alert('請輸入完整');
+    const date = document.getElementById('reconMonth').value + '-' + String(day).padStart(2,'0');
+    const d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
+    if(!d.vs) d.vs = {};
+    for(let k in d.vs) { if(k.startsWith(vn+'_')) delete d.vs[k]; }
+    d.vs[vn] = parseFloat(amt);
+    set('d_'+date, d); calcRecon(); alert('已手動更新單日金額');
+}
+
+// --- 報表生成 ---
+function genFullReport(){
+    const month = document.getElementById('rMonth').value;
+    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
+    if(!m) { document.getElementById('repArea').innerHTML = "<p style='color:red; text-align:center;'>尚未完成本月月結算</p>"; return; }
+    
+    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={};
+    for(let i=1; i<=31; i++){
+        const date = month + '-' + String(i).padStart(2,'0'), d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
+        if(d){
+            const val = (v)=>parseFloat(v)||0;
+            const cash = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1) - c.petty;
+            const dayT = cash + val(d.pOnline) + val(d.pScan);
+            if(dayT !== 0) {
+                dayRows += `<tr><td>${i}</td><td>$${Math.round(cash).toLocaleString()}</td><td>$${val(d.pOnline).toLocaleString()}</td><td>$${val(d.pScan).toLocaleString()}</td><td>$${Math.round(dayT).toLocaleString()}</td></tr>`;
+                tCash += cash; tOnline += val(d.pOnline); tScan += val(d.pScan); tDays++;
+            }
+            if(d.vs) for(let k in d.vs){
+                const p=k.split('_'), amt = p.length===3 ? (parseFloat(d.vs[k])*parseFloat(p[2])) : parseFloat(d.vs[k]);
+                vSum[p[0]] = (vSum[p[0]]||0) + amt;
+            }
+        }
+    }
+    const tRev = tCash + tOnline + tScan;
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
-
-    // 固定支出明細 (正確抓取月結算數據)
     const eNet = (m.e110-c.i110) + (m.e220-c.i220) - (m.se110-c.is110) - (m.se220-c.is220);
-    const fixedList = [
-        {n:'房租', v:m.rent},
-        {n:'公攤費(0.75折)', v:m.pub*0.75},
-        {n:'設備租賃', v:m.lease},
-        {n:`電費(${Math.round(eNet)}度)`, v:eNet*c.ue},
-        {n:`水費`, v:(m.w-c.iw)*c.uw},
-        {n:`瓦斯費`, v:(m.g-c.ig)*c.ug},
-        {n:'稅金(預估)', v:m.taxb*0.05}
-    ];
+    const fixed = [{n:'房租',v:m.rent},{n:'公攤(0.75折)',v:m.pub*0.75},{n:'設備',v:m.lease},{n:`電(${Math.round(eNet)}度)`,v:eNet*c.ue},{n:`水`,v:(m.w-c.iw)*c.uw},{n:`瓦斯`,v:(m.g-c.ig)*c.ug},{n:'稅金',v:m.taxb*0.05}];
     let tFixed = 0;
-    const fixedHtml = fixedList.map(f => {
-        tFixed += (f.v||0);
-        return `<tr><td colspan="4" style="text-align:left;">${f.n}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`;
-    }).join('');
-
+    const fixedHtml = fixed.map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.n}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
     const vendorHtml = Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('');
-
     let tStaff = 0;
     const staffHtml = get('staff').map(s => {
-        const h = m.staff?.[s.n]||0, b = m.bonus?.[s.n]||0;
-        const total = (h*s.r) * (1 + b/100);
+        const h = m.staff?.[s.n]||0, b = m.bonus?.[s.n]||0, total = (h*s.r) * (1 + b/100);
         tStaff += total;
         return `<tr><td>${s.n}</td><td>${h}h</td><td>$${s.r}</td><td>${b}%</td><td>$${Math.round(total).toLocaleString()}</td></tr>`;
     }).join('');
@@ -236,23 +286,18 @@ function genFullReport(){
         <div id="pdfPrintTarget" style="padding:10px;">
             <h2 style="text-align:center;">Wazi 報表 - ${month}</h2>
             <h4 class="section-title">📅 營業額明細</h4>
-            <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}
-            <tr style="background:#eee; font-weight:bold;"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td>$${Math.round(tOnline).toLocaleString()}</td><td>$${Math.round(tScan).toLocaleString()}</td><td>$${Math.round(totalRev).toLocaleString()}</td></tr></table>
-            
-            <h4 class="section-title">📦 廠商支出</h4>
-            <table><tr><th colspan="4">廠商</th><th>金額</th></tr>${vendorHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
-
+            <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}<tr style="background:#f9f9f9; font-weight:bold;"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td>$${Math.round(tOnline).toLocaleString()}</td><td>$${Math.round(tScan).toLocaleString()}</td><td>$${Math.round(tRev).toLocaleString()}</td></tr></table>
+            <h4 class="section-title">📦 廠商明細</h4>
+            <table>${vendorHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
             <h4 class="section-title">🏢 固定支出</h4>
-            <table><tr><th colspan="4">項目</th><th>金額</th></tr>${fixedHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
-
+            <table>${fixedHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
             <h4 class="section-title">👥 人事支出</h4>
             <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>合計</th></tr>${staffHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table>
-            
-            <div class="profit-box">本月純利：$${Math.round(totalRev - tVendor - tFixed - tStaff).toLocaleString()}</div>
+            <div class="profit-box">純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>
         </div>`;
 }
 
-// --- 其餘功能模組 ---
+// --- 基礎組件 ---
 function loadDaily(){
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
@@ -268,12 +313,11 @@ function saveDaily(){
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs });
-    alert('✅ 每日數據已存檔');
+    alert('儲存成功');
 }
 function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
-    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`
-        <div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
+    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb','lease'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
     ['e110','e220','se110','se220','w','g'].forEach(showLiveCalc);
 }
@@ -290,8 +334,8 @@ function switchTab(id){
     const btn = document.querySelector(`.tab-btn[onclick*="${id}"]`);
     if(btn) btn.classList.add('active');
     if(id==='report') genFullReport();
-    if(id==='settings') renderSettings();
     if(id==='monthly') loadMonthly();
+    if(id==='recon') renderRecon();
 }
 function calcDaily(){
     const c = cfg(); const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
@@ -320,7 +364,6 @@ function addVendor(){ const n=prompt('廠商名'); if(n){ const t=confirm('按�
 function del(k,i){ const d=get(k); d.splice(i,1); set(k,d); renderSettings(); }
 function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.startsWith(KEY)) d[k]=localStorage.getItem(k); }); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`Wazi_Backup.json`; a.click(); }
 function clearAllData(){ if(confirm('確定清空？')){ localStorage.clear(); location.reload(); } }
-
 async function exportPDF(){
     const canvas = await html2canvas(document.getElementById('pdfPrintTarget'), { scale: 3 });
     const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
