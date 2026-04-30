@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23</title>
+    <title>Wazi 管理系統 V23.1</title>
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
         body { background: #f4f7f6; margin: 0; padding: 10px; color: #333; font-size: 14px; }
@@ -22,6 +22,7 @@
         .btn-success { background: #28a745; color: white; }
         .btn-primary { background: #007bff; color: white; }
         .btn-danger { background: #dc3545; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         table th, table td { border: 1px solid #eee; padding: 8px; text-align: center; }
         .section-title { border-left: 4px solid #764ba2; padding-left: 8px; margin: 15px 0 10px; font-size: 15px; font-weight: bold; background: #f9f0ff; padding: 5px; }
@@ -56,8 +57,8 @@
                 <div class="form-group"><label>$5重</label><input type="number" id="w5" oninput="calcDaily()"></div>
             </div>
             <div class="grid">
-                <div class="form-group"><label>網路收入 (外送)</label><input type="number" id="pOnline" oninput="calcDaily()"></div>
-                <div class="form-group"><label>掃碼支付 (Line)</label><input type="number" id="pScan" oninput="calcDaily()"></div>
+                <div class="form-group"><label>網路收入</label><input type="number" id="pOnline" oninput="calcDaily()"></div>
+                <div class="form-group"><label>掃碼支付</label><input type="number" id="pScan" oninput="calcDaily()"></div>
             </div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
@@ -74,9 +75,9 @@
         </div>
         <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6;"></div>
         <div id="reconAction" class="card" style="display:none;">
-            <h4 style="margin:0 0 5px;">➕ 手動補錄/修改</h4>
-            <div class="grid"><input type="number" id="addDay" placeholder="幾號"><input type="number" id="addAmt" placeholder="總額"></div>
-            <button class="btn btn-primary" onclick="manualUpdateVendorTotal()">確認儲存</button>
+            <h4 style="margin:0 0 5px;">➕ 手動補錄</h4>
+            <div class="grid"><input type="number" id="addDay" placeholder="日期(號)"><input type="number" id="addAmt" placeholder="金額"></div>
+            <button class="btn btn-primary" onclick="manualUpdateVendorTotal()">確認修改</button>
         </div>
     </div>
 
@@ -88,7 +89,7 @@
     <div id="monthly" class="tab-content">
         <div class="card">
             <input type="month" id="mMonth" onchange="loadMonthly()">
-            <h4 class="section-title">抄表結束度數 (送出後會自動取代起始)</h4>
+            <h4 class="section-title">抄表結束度數 (送出後更新起始)</h4>
             <div class="grid">
                 <div class="form-group"><label>總表110</label><input type="number" id="me110" oninput="showLiveCalc('e110')"><div id="hint_e110" class="calc-hint"></div></div>
                 <div class="form-group"><label>總表220</label><input type="number" id="me220" oninput="showLiveCalc('e220')"><div id="hint_e220" class="calc-hint"></div></div>
@@ -101,22 +102,22 @@
                 <div class="form-group"><label>設備租賃</label><input type="number" id="mlease"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" id="mtaxb"></div>
             </div>
-            <h4 class="section-title">👥 薪資與獎金</h4>
+            <h4 class="section-title">👥 薪資獎金</h4>
             <div id="mStaffArea"></div>
-            <button class="btn btn-success" style="margin-top:15px;" onclick="saveMonthlyAndReplace()">🚀 確認送出並更新起始度數</button>
+            <button class="btn btn-success" style="margin-top:15px;" onclick="saveMonthlyAndReplace()">🚀 儲存並更新起始度數</button>
         </div>
     </div>
 
     <div id="settings" class="tab-content">
         <div class="card">
-            <h4 class="section-title">基本單價設定</h4>
+            <h4 class="section-title">單價與零用金</h4>
             <div class="grid">
                 <div class="form-group"><label>電單價</label><input type="number" id="upElec"></div>
                 <div class="form-group"><label>水單價</label><input type="number" id="upWater"></div>
                 <div class="form-group"><label>瓦斯單價</label><input type="number" id="upGas"></div>
-                <div class="form-group"><label>零用金基數</label><input type="number" id="sPetty"></div>
+                <div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div>
             </div>
-            <h4 class="section-title">目前起始度數 (月結送出後自動更新)</h4>
+            <h4 class="section-title">當前起始度數</h4>
             <div class="grid">
                 <div class="form-group"><label>總110</label><input type="number" id="si110"></div>
                 <div class="form-group"><label>總220</label><input type="number" id="si220"></div>
@@ -125,18 +126,18 @@
                 <div class="form-group"><label>水始</label><input type="number" id="siw"></div>
                 <div class="form-group"><label>瓦斯始</label><input type="number" id="sig"></div>
             </div>
+            <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
         </div>
         <div class="card">
-            <div id="listStaff"></div><button class="btn btn-primary" onclick="addStaff()">+ 新增員工</button><hr>
-            <div id="listVendor"></div><button class="btn btn-primary" onclick="addVendor()">+ 新增廠商</button>
+            <div id="listStaff"></div><button class="btn btn-primary" onclick="addStaff()">+ 員工</button><hr>
+            <div id="listVendor"></div><button class="btn btn-primary" onclick="addVendor()">+ 廠商</button>
         </div>
-        <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
-        
-        <h4 class="section-title">💾 資料管理</h4>
+        <h4 class="section-title">🛠 系統工具</h4>
         <div class="grid">
-            <button class="btn btn-primary" onclick="backupData()">📥 匯出備份</button>
-            <button class="btn btn-danger" onclick="clearAllData()">⚠️ 清空系統</button>
+            <button class="btn btn-primary" onclick="backupData()">📥 備份數據</button>
+            <button class="btn btn-info" onclick="location.reload()">🔄 重新整理頁面</button>
         </div>
+        <button class="btn btn-danger" style="margin-top:10px;" onclick="clearAllData()">⚠️ 清空所有資料</button>
     </div>
 </div>
 
@@ -157,11 +158,31 @@ function initApp(){
     loadDaily(); renderRecon(); loadMonthly();
 }
 
-// --- 報表核心：細分統計 ---
+// 分頁切換修復：確保 ID 對應
+function switchTab(id){
+    // 1. 隱藏所有內容
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    // 2. 取消所有按鈕亮起
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    // 3. 顯示指定內容與按鈕
+    const target = document.getElementById(id);
+    if(target) target.classList.add('active');
+    
+    const btn = document.querySelector(`.tab-btn[onclick*="${id}"]`);
+    if(btn) btn.classList.add('active');
+
+    // 4. 根據分頁觸發加載
+    if(id==='report') genFullReport();
+    if(id==='monthly') loadMonthly();
+    if(id==='recon') renderRecon();
+    if(id==='settings') renderSettings();
+}
+
+// 報表：細分收入統計
 function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)), c = cfg();
-    if(!m) { document.getElementById('repArea').innerHTML = "<p style='color:red; text-align:center;'>尚未完成月結算存檔</p>"; return; }
+    if(!m) { document.getElementById('repArea').innerHTML = "<p style='color:red; text-align:center;'>請先完成「月結算」頁面的儲存。</p>"; return; }
     
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={};
     for(let i=1; i<=31; i++){
@@ -186,18 +207,13 @@ function genFullReport(){
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
     const eNet = (m.e110-c.i110) + (m.e220-c.i220) - (m.se110-c.is110) - (m.se220-c.is220);
     
-    // 固定成本
-    const fixed = [
-        {n:'房租',v:m.rent, raw:`房租`},
-        {n:'公攤(0.75折)',v:m.pub*0.75, raw:`公攤($${m.pub})`},
-        {n:'設備租賃',v:m.lease, raw:`設備租賃`},
-        {n:'電費',v:eNet*c.ue, raw:`電(${Math.round(eNet)}度)`},
-        {n:'水費',v:(m.w-c.iw)*c.uw, raw:`水(${m.w-c.iw}度)`},
-        {n:'瓦斯',v:(m.g-c.ig)*c.ug, raw:`瓦斯(${m.g-c.ig}度)`},
-        {n:'稅金',v:m.taxb*0.05, raw:`稅金`}
-    ];
     let tFixed = 0;
-    const fixedHtml = fixed.map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.raw}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
+    const fixed = [
+        {n:'房租',v:m.rent, raw:`房租`}, {n:'公攤(0.75折)',v:m.pub*0.75, raw:`公攤($${m.pub})`}, {n:'設備',v:m.lease, raw:`設備租賃`},
+        {n:'電費',v:eNet*c.ue, raw:`電(${Math.round(eNet)}度)`}, {n:'水費',v:(m.w-c.iw)*c.uw, raw:`水(${m.w-c.iw}度)`},
+        {n:'瓦斯',v:(m.g-c.ig)*c.ug, raw:`瓦斯(${m.g-c.ig}度)`}, {n:'稅金',v:m.taxb*0.05, raw:`稅金`}
+    ].map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.raw}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
+
     const vendorHtml = Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('');
     let tStaff = 0;
     const staffHtml = get('staff').map(s => {
@@ -207,30 +223,26 @@ function genFullReport(){
     }).join('');
 
     document.getElementById('repArea').innerHTML = `
-        <div style="padding:5px;">
-            <div class="stat-grid">
-                <div class="stat-card">營業天數<br><b>${tDays}</b></div>
-                <div class="stat-card">日均營收<br><b>$${Math.round(avgRev).toLocaleString()}</b></div>
-                <div class="stat-card">現金總計<br><b>$${Math.round(tCash).toLocaleString()}</b></div>
-                <div class="stat-card">網路總計<br><b>$${Math.round(tOnline).toLocaleString()}</b></div>
-                <div class="stat-card">掃碼總計<br><b>$${Math.round(tScan).toLocaleString()}</b></div>
-                <div class="stat-card">全月總營收<br><b>$${Math.round(tRev).toLocaleString()}</b></div>
-            </div>
-            <h4 class="section-title">📅 每日收支明細</h4>
-            <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}</table>
-            <h4 class="section-title">📦 廠商支出</h4>
-            <table>${vendorHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr></table>
-            <h4 class="section-title">🏢 營運與固定成本</h4>
-            <table>${fixedHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr></table>
-            <h4 class="section-title">👥 人事成本</h4>
-            <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>合計</th></tr>${staffHtml}<tr><td colspan="4">小計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table>
-            <div class="profit-box">本月預計純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>
-        </div>`;
+        <div class="stat-grid">
+            <div class="stat-card">營業天數<br><b>${tDays}</b></div>
+            <div class="stat-card">日均營收<br><b>$${Math.round(avgRev).toLocaleString()}</b></div>
+            <div class="stat-card">現金總計<br><b>$${Math.round(tCash).toLocaleString()}</b></div>
+            <div class="stat-card">網路總計<br><b>$${Math.round(tOnline).toLocaleString()}</b></div>
+            <div class="stat-card">掃碼總計<br><b>$${Math.round(tScan).toLocaleString()}</b></div>
+            <div class="stat-card">全月總收入<br><b>$${Math.round(tRev).toLocaleString()}</b></div>
+        </div>
+        <h4 class="section-title">📅 每日細項</h4>
+        <table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}</table>
+        <h4 class="section-title">📦 廠商與成本</h4>
+        <table>${vendorHtml}${fixed}</table>
+        <h4 class="section-title">👥 人事成本</h4>
+        <table><tr><th>姓名</th><th>工時</th><th>時薪</th><th>獎金</th><th>合計</th></tr>${staffHtml}</table>
+        <div class="profit-box">本月預計純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>`;
 }
 
-// --- 月結：自動取代度數 ---
+// 月結：儲存並自動更新起始度數
 function saveMonthlyAndReplace(){
-    if(!confirm("確定送出？這將會把本次結束度數自動覆蓋為系統設定的起始度數！")) return;
+    if(!confirm("確定送出？本次結束度數將會覆蓋起始度數！")) return;
     const m = document.getElementById('mMonth').value, s={}, b={}, c = cfg();
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
@@ -242,24 +254,21 @@ function saveMonthlyAndReplace(){
     const w = parseFloat(document.getElementById('mw').value)||0;
     const g = parseFloat(document.getElementById('mg').value)||0;
 
-    // 1. 存入月結檔
     set('m_'+m, { staff:s, bonus:b, e110, e220, se110, se220, w, g, pub:parseFloat(document.getElementById('mpub').value)||0, rent:parseFloat(document.getElementById('mrent').value)||0, taxb:parseFloat(document.getElementById('mtaxb').value)||0, lease:parseFloat(document.getElementById('mlease').value)||0 });
 
-    // 2. 自動覆蓋起始度數
     c.i110 = e110; c.i220 = e220; c.is110 = se110; c.is220 = se220; c.iw = w; c.ig = g;
     set('cfg', c);
-
-    alert('✅ 月結成功！起始度數已同步更新。');
-    document.getElementById('rMonth').value = m; switchTab('report');
+    alert('✅ 月結完成且起始度數已更新！');
+    switchTab('report');
 }
 
-// --- 基礎模組 (合併功能) ---
+// 每日記帳模組
 function loadDaily(){
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
     let html = ""; get('vendors').forEach(v => {
-        if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}"></div>`;
-        } else { (v.items||[]).forEach(it => { const key = v.name+'_'+it.n+'_'+it.p; html += `<div class="v-row"><b>${v.name}-${it.n}</b><input type="number" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}"></div>`; }); }
+        if(v.type==='金額'){ html += `<div class="v-row" style="padding:5px;"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc;"></div>`;
+        } else { (v.items||[]).forEach(it => { const key = v.name+'_'+it.n+'_'+it.p; html += `<div class="v-row" style="padding:5px;"><b>${v.name}-${it.n}</b><input type="number" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc;"></div>`; }); }
     });
     document.getElementById('vDailyArea').innerHTML = html; calcDaily();
 }
@@ -268,24 +277,20 @@ function saveDaily(){
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs });
-    alert('今日數據已儲存');
-}
-function loadMonthly(){
-    const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
-    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
-    ['e110','e220','se110','se220','w','g','pub','rent','taxb','lease'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
-    ['e110','e220','se110','se220','w','g'].forEach(showLiveCalc);
-}
-function switchTab(id){
-    document.querySelectorAll('.tab-content, .tab-btn').forEach(el=>el.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    const btn = document.querySelector(`.tab-btn[onclick*="${id}"]`); if(btn) btn.classList.add('active');
-    if(id==='report') genFullReport(); if(id==='monthly') loadMonthly(); if(id==='settings') renderSettings();
+    alert('今日數據儲存成功');
 }
 function calcDaily(){
     const c = cfg(); const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
     const cash = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(cash-c.petty+val('pOnline')+val('pScan')).toLocaleString()}`;
+}
+
+// 基礎功能
+function loadMonthly(){
+    const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
+    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
+    ['e110','e220','se110','se220','w','g','pub','rent','taxb','lease'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
+    ['e110','e220','se110','se220','w','g'].forEach(showLiveCalc);
 }
 function showLiveCalc(type){
     const c = cfg(), cur = parseFloat(document.getElementById('m'+type).value) || 0;
@@ -304,7 +309,8 @@ function saveSettings(){
     set('cfg', { ue:parseFloat(document.getElementById('upElec').value), uw:parseFloat(document.getElementById('upWater').value), ug:parseFloat(document.getElementById('upGas').value), petty:parseFloat(document.getElementById('sPetty').value), i110:parseFloat(document.getElementById('si110').value), i220:parseFloat(document.getElementById('si220').value), is110:parseFloat(document.getElementById('sis110').value), is220:parseFloat(document.getElementById('sis220').value), iw:parseFloat(document.getElementById('siw').value), ig:parseFloat(document.getElementById('sig').value) });
     alert('設定已儲存');
 }
-// 對帳中心核心
+
+// 對帳中心
 function renderRecon(){
     const vs = get('vendors');
     let html = ""; vs.forEach(v => { html += `<label style="display:block; padding:8px; border-bottom:1px solid #eee;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="calcRecon()"> ${v.name}</label>`; });
@@ -340,13 +346,15 @@ function manualUpdateVendorTotal(){
     const date = document.getElementById('reconMonth').value + '-' + String(d).padStart(2,'0');
     const data = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     for(let k in data.vs) { if(k.startsWith(vn+'_')) delete data.vs[k]; }
-    data.vs[vn] = parseFloat(a); set('d_'+date, data); calcRecon(); alert('已手動修正');
+    data.vs[vn] = parseFloat(a); set('d_'+date, data); calcRecon(); alert('數據已修正');
 }
+
 function addStaff(){ const n=prompt('姓名'); if(n){ const s=get('staff'); s.push({n:n, r:parseFloat(prompt('時薪','190'))}); set('staff',s); renderSettings(); } }
-function addVendor(){ const n=prompt('廠商名'); if(n){ const t=confirm('按品項輸入?')?'品項':'金額'; const v=get('vendors'); v.push({name:n, type:t, items:[]}); if(t==='品項'){ let in; while(in=prompt('品項名(留空結束)')){ v[v.length-1].items.push({n:in, p:parseFloat(prompt('單價','0'))}); } } set('vendors',v); renderSettings(); } }
+function addVendor(){ const n=prompt('廠商名'); if(n){ const t=confirm('按品項輸入?')?'品項':'金額'; const v=get('vendors'); v.push({name:n, type:t, items:[]}); if(t==='品項'){ let iname; while(iname=prompt('品項名(留空結束)')){ v[v.length-1].items.push({n:iname, p:parseFloat(prompt('單價','0'))}); } } set('vendors',v); renderSettings(); } }
 function del(k,i){ const d=get(k); d.splice(i,1); set(k,d); renderSettings(); }
 function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.startsWith(KEY)) d[k]=localStorage.getItem(k); }); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`Wazi_Backup.json`; a.click(); }
 function clearAllData(){ if(confirm('⚠️ 確定清空所有資料？無法復原！')){ localStorage.clear(); location.reload(); } }
+
 window.addEventListener('load', initApp);
 </script>
 </body>
