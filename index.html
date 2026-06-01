@@ -175,6 +175,13 @@
             <button class="btn btn-warning" onclick="manualReplaceStartDegrees()">📍 更新度數為下月起始值</button>
             <h4 class="section-title">👥 薪資獎金</h4>
             <div id="mStaffArea"></div>
+            <h4 class="section-title">舒芙蕾報表</h4>
+            <div class="grid">
+                <div class="form-group"><label>租金</label><input type="number" inputmode="decimal" id="msouffleRent" value="15000"></div>
+                <div class="form-group"><label>水費</label><input type="number" inputmode="decimal" id="msouffleWater"></div>
+                <div class="form-group"><label>公攤費</label><input type="number" inputmode="decimal" id="msoufflePub"></div>
+                <div class="form-group"><label>5%營業額基數</label><input type="number" inputmode="decimal" id="msouffleRevenue"></div>
+            </div>
             <button class="btn btn-success" style="margin-top:15px;" onclick="saveMonthlyOnly()">💾 儲存本月報表數據</button>
         </div>
     </div>
@@ -198,16 +205,6 @@
                 <div class="form-group"><label>瓦斯始</label><input type="number" id="sig"></div>
             </div>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
-        </div>
-        <div class="card">
-            <h4 class="section-title">舒芙蕾報表設定</h4>
-            <div class="grid">
-                <div class="form-group"><label>租金</label><input type="number" inputmode="decimal" id="souffleRent" value="15000"></div>
-                <div class="form-group"><label>水費</label><input type="number" inputmode="decimal" id="souffleWater"></div>
-                <div class="form-group"><label>公攤費</label><input type="number" inputmode="decimal" id="soufflePub"></div>
-                <div class="form-group"><label>5%營業額基數</label><input type="number" inputmode="decimal" id="souffleRevenue"></div>
-            </div>
-            <button class="btn btn-success" onclick="saveSettings()">💾 儲存舒芙蕾設定</button>
         </div>
         <div class="card">
             <h4 class="section-title">員工</h4>
@@ -244,7 +241,7 @@
 const KEY = "wazi_v23_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
-const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, souffleRent:15000, souffleWater:0, soufflePub:0, souffleRevenue:0};
+const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
 const num = (v)=>parseFloat(v) || 0;
@@ -313,12 +310,18 @@ function getSouffleExpenseRows(m, c){
     const se110Use = Math.max(0, num(m.se110) - num(start.is110));
     const se220Use = Math.max(0, num(m.se220) - num(start.is220));
     const subElectricUse = se110Use + se220Use;
+    const souffle = Object.assign({rent:15000, water:0, pub:0, revenue:0}, m.souffle || {
+        rent:c.souffleRent,
+        water:c.souffleWater,
+        pub:c.soufflePub,
+        revenue:c.souffleRevenue
+    });
     return [
-        {label:'租金', detail:'設定固定租金', amount:num(c.souffleRent)},
+        {label:'租金', detail:'本月舒芙蕾租金', amount:num(souffle.rent)},
         {label:'電費', detail:`分表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × ${money(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
-        {label:'水費', detail:'設定水費', amount:num(c.souffleWater)},
-        {label:'公攤費', detail:'設定公攤費', amount:num(c.soufflePub)},
-        {label:'5%營業額', detail:`${money(c.souffleRevenue)} × 5%`, amount:num(c.souffleRevenue) * 0.05}
+        {label:'水費', detail:'本月舒芙蕾水費', amount:num(souffle.water)},
+        {label:'公攤費', detail:'本月舒芙蕾公攤費', amount:num(souffle.pub)},
+        {label:'5%營業額', detail:`${money(souffle.revenue)} × 5%`, amount:num(souffle.revenue) * 0.05}
     ];
 }
 
@@ -418,6 +421,7 @@ function renderSouffleReport(){
                 <tr class="grand-total-row"><td colspan="2" style="text-align:left;">舒芙蕾總計</td><td>${money(total)}</td></tr>
             </table>
         </div>`;
+    document.getElementById('souffleArea').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function exportReportPdf(){
@@ -526,6 +530,17 @@ function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
+    const c = cfg();
+    const souffle = Object.assign({rent:15000, water:0, pub:0, revenue:0}, m.souffle || {
+        rent:c.souffleRent,
+        water:c.souffleWater,
+        pub:c.soufflePub,
+        revenue:c.souffleRevenue
+    });
+    document.getElementById('msouffleRent').value = souffle.rent || 15000;
+    document.getElementById('msouffleWater').value = souffle.water || '';
+    document.getElementById('msoufflePub').value = souffle.pub || '';
+    document.getElementById('msouffleRevenue').value = souffle.revenue || '';
     ['e110','e220','se110','se220','w','g'].forEach(showLiveCalc);
     setupNumericKeyboards();
 }
@@ -537,6 +552,12 @@ function saveMonthlyOnly(){
     set('m_'+m, {
         staff:s,
         bonus:b,
+        souffle:{
+            rent:parseFloat(document.getElementById('msouffleRent').value)||0,
+            water:parseFloat(document.getElementById('msouffleWater').value)||0,
+            pub:parseFloat(document.getElementById('msoufflePub').value)||0,
+            revenue:parseFloat(document.getElementById('msouffleRevenue').value)||0
+        },
         start:{i110:num(c.i110), i220:num(c.i220), is110:num(c.is110), is220:num(c.is220), iw:num(c.iw), ig:num(c.ig)},
         rates:{ue:num(c.ue), uw:num(c.uw), ug:num(c.ug)},
         e110:parseFloat(document.getElementById('me110').value)||0,
@@ -610,7 +631,7 @@ function manualUpdateVendorTotal(){
     data.vs[vn] = parseFloat(a); set('d_'+date, data); calcRecon(); alert('數據已修正');
 }
 function renderSettings(){
-    const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig', souffleRent:'souffleRent', souffleWater:'souffleWater', soufflePub:'soufflePub', souffleRevenue:'souffleRevenue'};
+    const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
     document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
     document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div class="list-row"><span>${v.name} (${v.type}${v.type==='品項' ? ` / ${(v.items||[]).length}項` : ''})</span><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增廠商</div>';
@@ -627,11 +648,7 @@ function saveSettings(){
         is110:parseFloat(document.getElementById('sis110').value)||0,
         is220:parseFloat(document.getElementById('sis220').value)||0,
         iw:parseFloat(document.getElementById('siw').value)||0,
-        ig:parseFloat(document.getElementById('sig').value)||0,
-        souffleRent:parseFloat(document.getElementById('souffleRent').value)||0,
-        souffleWater:parseFloat(document.getElementById('souffleWater').value)||0,
-        soufflePub:parseFloat(document.getElementById('soufflePub').value)||0,
-        souffleRevenue:parseFloat(document.getElementById('souffleRevenue').value)||0
+        ig:parseFloat(document.getElementById('sig').value)||0
     });
     alert('設定已儲存');
 }
