@@ -153,7 +153,6 @@
         <div class="date-picker-wrap"><input type="month" id="rMonth" onchange="genFullReport()"></div>
         <div id="repArea"></div>
         <button class="btn btn-info no-print" style="margin-top:15px;" onclick="exportReportPdf()">輸出 PDF</button>
-        <button class="btn btn-warning no-print" style="margin-top:8px;" onclick="renderSouffleReport()">舒芙蕾報表</button>
         <div id="souffleArea"></div>
     </div>
 
@@ -164,8 +163,6 @@
             <div class="grid">
                 <div class="form-group"><label>總表110</label><input type="number" inputmode="decimal" id="me110" oninput="showLiveCalc('e110')"><div id="hint_e110" class="calc-hint"></div></div>
                 <div class="form-group"><label>總表220</label><input type="number" inputmode="decimal" id="me220" oninput="showLiveCalc('e220')"><div id="hint_e220" class="calc-hint"></div></div>
-                <div class="form-group"><label>分表110</label><input type="number" inputmode="decimal" id="mse110" oninput="showLiveCalc('se110')"><div id="hint_se110" class="calc-hint"></div></div>
-                <div class="form-group"><label>分表220</label><input type="number" inputmode="decimal" id="mse220" oninput="showLiveCalc('se220')"><div id="hint_se220" class="calc-hint"></div></div>
                 <div class="form-group"><label>水費抄表</label><input type="number" inputmode="decimal" id="mw" oninput="showLiveCalc('w')"><div id="hint_w" class="calc-hint"></div></div>
                 <div class="form-group"><label>瓦斯抄表</label><input type="number" inputmode="decimal" id="mg" oninput="showLiveCalc('g')"><div id="hint_g" class="calc-hint"></div></div>
                 <div class="form-group"><label>房租</label><input type="number" inputmode="decimal" id="mrent"></div>
@@ -177,9 +174,9 @@
             <div id="mStaffArea"></div>
             <h4 class="section-title">舒芙蕾報表</h4>
             <div class="grid">
+                <div class="form-group"><label>舒芙蕾電表110</label><input type="number" inputmode="decimal" id="mse110" oninput="showLiveCalc('se110')"><div id="hint_se110" class="calc-hint"></div></div>
+                <div class="form-group"><label>舒芙蕾電表220</label><input type="number" inputmode="decimal" id="mse220" oninput="showLiveCalc('se220')"><div id="hint_se220" class="calc-hint"></div></div>
                 <div class="form-group"><label>租金</label><input type="number" inputmode="decimal" id="msouffleRent" value="15000"></div>
-                <div class="form-group"><label>水費</label><input type="number" inputmode="decimal" id="msouffleWater"></div>
-                <div class="form-group"><label>公攤費</label><input type="number" inputmode="decimal" id="msoufflePub"></div>
                 <div class="form-group"><label>5%營業額基數</label><input type="number" inputmode="decimal" id="msouffleRevenue"></div>
             </div>
             <button class="btn btn-success" style="margin-top:15px;" onclick="saveMonthlyOnly()">💾 儲存本月報表數據</button>
@@ -310,17 +307,19 @@ function getSouffleExpenseRows(m, c){
     const se110Use = Math.max(0, num(m.se110) - num(start.is110));
     const se220Use = Math.max(0, num(m.se220) - num(start.is220));
     const subElectricUse = se110Use + se220Use;
-    const souffle = Object.assign({rent:15000, water:0, pub:0, revenue:0}, m.souffle || {
-        rent:c.souffleRent,
-        water:c.souffleWater,
-        pub:c.soufflePub,
-        revenue:c.souffleRevenue
-    });
+    const waterUse = Math.max(0, num(m.w) - num(start.iw));
+    const waterAmount = waterUse * num(rates.uw);
+    const pubAmount = num(m.pub) * 0.75;
+    const legacySouffle = m.souffle || {};
+    const souffle = {
+        rent: legacySouffle.rent ?? c.souffleRent ?? 15000,
+        revenue: legacySouffle.revenue ?? c.souffleRevenue ?? 0
+    };
     return [
         {label:'租金', detail:'本月舒芙蕾租金', amount:num(souffle.rent)},
-        {label:'電費', detail:`分表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × ${money(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
-        {label:'水費', detail:'本月舒芙蕾水費', amount:num(souffle.water)},
-        {label:'公攤費', detail:'本月舒芙蕾公攤費', amount:num(souffle.pub)},
+        {label:'電費', detail:`舒芙蕾電表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × ${money(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
+        {label:'水費', detail:`同主報表水費：${waterUse.toFixed(1)} 度 × ${money(rates.uw)}`, amount:waterAmount},
+        {label:'公攤費', detail:`同主報表公攤：${money(m.pub)} × 0.75`, amount:pubAmount},
         {label:'5%營業額', detail:`${money(souffle.revenue)} × 5%`, amount:num(souffle.revenue) * 0.05}
     ];
 }
@@ -350,7 +349,6 @@ function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = getMonthlyData(month);
     const c = cfg();
-    document.getElementById('souffleArea').innerHTML = '';
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
@@ -401,9 +399,10 @@ function genFullReport(){
         <h4 class="section-title">📦 支出與人事</h4>
         <div class="card report-card" style="padding:0"><table><tr><th colspan="4" style="text-align:left;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="5">無廠商進貨</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="2" style="text-align:left;">固定支出</th><th colspan="2" style="text-align:left;">計算方式</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">人事成本</th><th>合計</th></tr>${staffHtml || '<tr><td colspan="5">無人事資料</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
         <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff).toLocaleString()}</div>`;
+    renderSouffleReport(false);
 }
 
-function renderSouffleReport(){
+function renderSouffleReport(shouldScroll = true){
     const month = document.getElementById('rMonth').value;
     const m = getMonthlyData(month);
     const c = cfg();
@@ -421,13 +420,13 @@ function renderSouffleReport(){
                 <tr class="grand-total-row"><td colspan="2" style="text-align:left;">舒芙蕾總計</td><td>${money(total)}</td></tr>
             </table>
         </div>`;
-    document.getElementById('souffleArea').scrollIntoView({behavior:'smooth', block:'start'});
+    if(shouldScroll) document.getElementById('souffleArea').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function exportReportPdf(){
     genFullReport();
     const month = document.getElementById('rMonth').value || 'report';
-    const reportHtml = document.getElementById('repArea').innerHTML;
+    const reportHtml = document.getElementById('repArea').innerHTML + document.getElementById('souffleArea').innerHTML;
     const preview = window.open('', '_blank');
     if(!preview){
         alert('瀏覽器阻擋了報表預覽頁，請允許彈出視窗後再試一次');
@@ -531,15 +530,12 @@ function loadMonthly(){
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
     const c = cfg();
-    const souffle = Object.assign({rent:15000, water:0, pub:0, revenue:0}, m.souffle || {
-        rent:c.souffleRent,
-        water:c.souffleWater,
-        pub:c.soufflePub,
-        revenue:c.souffleRevenue
-    });
+    const legacySouffle = m.souffle || {};
+    const souffle = {
+        rent: legacySouffle.rent ?? c.souffleRent ?? 15000,
+        revenue: legacySouffle.revenue ?? c.souffleRevenue ?? 0
+    };
     document.getElementById('msouffleRent').value = souffle.rent || 15000;
-    document.getElementById('msouffleWater').value = souffle.water || '';
-    document.getElementById('msoufflePub').value = souffle.pub || '';
     document.getElementById('msouffleRevenue').value = souffle.revenue || '';
     ['e110','e220','se110','se220','w','g'].forEach(showLiveCalc);
     setupNumericKeyboards();
@@ -554,8 +550,6 @@ function saveMonthlyOnly(){
         bonus:b,
         souffle:{
             rent:parseFloat(document.getElementById('msouffleRent').value)||0,
-            water:parseFloat(document.getElementById('msouffleWater').value)||0,
-            pub:parseFloat(document.getElementById('msoufflePub').value)||0,
             revenue:parseFloat(document.getElementById('msouffleRevenue').value)||0
         },
         start:{i110:num(c.i110), i220:num(c.i220), is110:num(c.is110), is220:num(c.is220), iw:num(c.iw), ig:num(c.ig)},
