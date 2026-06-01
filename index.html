@@ -264,21 +264,29 @@ function getMonthlyData(month){
     return JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}, e110:0, e220:0, se110:0, se220:0, w:0, g:0, pub:0, rent:0, taxb:0, lease:0};
 }
 
+function getMonthlyCalcBase(m, c){
+    return {
+        start: m.start || {i110:c.i110, i220:c.i220, is110:c.is110, is220:c.is220, iw:c.iw, ig:c.ig},
+        rates: m.rates || {ue:c.ue, uw:c.uw, ug:c.ug}
+    };
+}
+
 function getFixedExpenseRows(m, c){
-    const e110Use = Math.max(0, num(m.e110) - num(c.i110));
-    const e220Use = Math.max(0, num(m.e220) - num(c.i220));
-    const se110Use = Math.max(0, num(m.se110) - num(c.is110));
-    const se220Use = Math.max(0, num(m.se220) - num(c.is220));
+    const {start, rates} = getMonthlyCalcBase(m, c);
+    const e110Use = Math.max(0, num(m.e110) - num(start.i110));
+    const e220Use = Math.max(0, num(m.e220) - num(start.i220));
+    const se110Use = Math.max(0, num(m.se110) - num(start.is110));
+    const se220Use = Math.max(0, num(m.se220) - num(start.is220));
     const eNet = Math.max(0, e110Use + e220Use - se110Use - se220Use);
-    const waterUse = Math.max(0, num(m.w) - num(c.iw));
-    const gasUse = Math.max(0, num(m.g) - num(c.ig));
+    const waterUse = Math.max(0, num(m.w) - num(start.iw));
+    const gasUse = Math.max(0, num(m.g) - num(start.ig));
     return [
         {label:'房租', detail:'月租金', amount:num(m.rent)},
         {label:'公攤', detail:`輸入 ${money(m.pub)} × 0.75`, amount:num(m.pub) * 0.75},
         {label:'設備租賃', detail:'月固定設備費', amount:num(m.lease)},
-        {label:'電費', detail:`${eNet.toFixed(1)} 度 × ${money(c.ue)}`, amount:eNet * num(c.ue)},
-        {label:'水費', detail:`${waterUse.toFixed(1)} 度 × ${money(c.uw)}`, amount:waterUse * num(c.uw)},
-        {label:'瓦斯', detail:`${gasUse.toFixed(1)} 度 × ${money(c.ug)}`, amount:gasUse * num(c.ug)},
+        {label:'電費', detail:`總110 ${num(start.i110)}→${num(m.e110)}，總220 ${num(start.i220)}→${num(m.e220)}，分表扣 ${se110Use.toFixed(1)}+${se220Use.toFixed(1)}，實用 ${eNet.toFixed(1)} 度 × ${money(rates.ue)}`, amount:eNet * num(rates.ue)},
+        {label:'水費', detail:`${num(start.iw)}→${num(m.w)}，用量 ${waterUse.toFixed(1)} 度 × ${money(rates.uw)}`, amount:waterUse * num(rates.uw)},
+        {label:'瓦斯', detail:`${num(start.ig)}→${num(m.g)}，用量 ${gasUse.toFixed(1)} 度 × ${money(rates.ug)}`, amount:gasUse * num(rates.ug)},
         {label:'稅金', detail:`稅金基數 ${money(m.taxb)} × 5%`, amount:num(m.taxb) * 0.05}
     ];
 }
@@ -471,9 +479,25 @@ function loadMonthly(){
 }
 function saveMonthlyOnly(){
     const m = document.getElementById('mMonth').value, s={}, b={};
+    const c = cfg();
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
-    set('m_'+m, { staff:s, bonus:b, e110:parseFloat(document.getElementById('me110').value)||0, e220:parseFloat(document.getElementById('me220').value)||0, se110:parseFloat(document.getElementById('mse110').value)||0, se220:parseFloat(document.getElementById('mse220').value)||0, w:parseFloat(document.getElementById('mw').value)||0, g:parseFloat(document.getElementById('mg').value)||0, pub:parseFloat(document.getElementById('mpub').value)||0, rent:parseFloat(document.getElementById('mrent').value)||0, taxb:parseFloat(document.getElementById('mtaxb').value)||0, lease:parseFloat(document.getElementById('mlease').value)||0 });
+    set('m_'+m, {
+        staff:s,
+        bonus:b,
+        start:{i110:num(c.i110), i220:num(c.i220), is110:num(c.is110), is220:num(c.is220), iw:num(c.iw), ig:num(c.ig)},
+        rates:{ue:num(c.ue), uw:num(c.uw), ug:num(c.ug)},
+        e110:parseFloat(document.getElementById('me110').value)||0,
+        e220:parseFloat(document.getElementById('me220').value)||0,
+        se110:parseFloat(document.getElementById('mse110').value)||0,
+        se220:parseFloat(document.getElementById('mse220').value)||0,
+        w:parseFloat(document.getElementById('mw').value)||0,
+        g:parseFloat(document.getElementById('mg').value)||0,
+        pub:parseFloat(document.getElementById('mpub').value)||0,
+        rent:parseFloat(document.getElementById('mrent').value)||0,
+        taxb:parseFloat(document.getElementById('mtaxb').value)||0,
+        lease:parseFloat(document.getElementById('mlease').value)||0
+    });
     document.getElementById('rMonth').value = m;
     alert('✅ 數據已儲存'); switchTab('report'); genFullReport();
 }
