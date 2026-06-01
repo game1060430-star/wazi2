@@ -174,8 +174,8 @@
             <div id="mStaffArea"></div>
             <h4 class="section-title">舒芙蕾報表</h4>
             <div class="grid">
-                <div class="form-group"><label>舒芙蕾電表110</label><input type="number" inputmode="decimal" id="mse110" oninput="showLiveCalc('se110')"><div id="hint_se110" class="calc-hint"></div></div>
-                <div class="form-group"><label>舒芙蕾電表220</label><input type="number" inputmode="decimal" id="mse220" oninput="showLiveCalc('se220')"><div id="hint_se220" class="calc-hint"></div></div>
+                <div class="form-group"><label>舒芙蕾分表110</label><input type="number" inputmode="decimal" id="mse110" oninput="showLiveCalc('se110')"><div id="hint_se110" class="calc-hint"></div></div>
+                <div class="form-group"><label>舒芙蕾分表220</label><input type="number" inputmode="decimal" id="mse220" oninput="showLiveCalc('se220')"><div id="hint_se220" class="calc-hint"></div></div>
                 <div class="form-group"><label>租金</label><input type="number" inputmode="decimal" id="msouffleRent" value="15000"></div>
                 <div class="form-group"><label>5%營業額基數</label><input type="number" inputmode="decimal" id="msouffleRevenue"></div>
             </div>
@@ -317,7 +317,7 @@ function getSouffleExpenseRows(m, c){
     };
     return [
         {label:'租金', detail:'本月舒芙蕾租金', amount:num(souffle.rent)},
-        {label:'電費', detail:`舒芙蕾電表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × ${money(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
+        {label:'電費', detail:`舒芙蕾分表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × 店裡電單價 ${money(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
         {label:'水費', detail:`同主報表水費：${waterUse.toFixed(1)} 度 × ${money(rates.uw)}`, amount:waterAmount},
         {label:'公攤費', detail:`同主報表公攤：${money(m.pub)} × 0.75`, amount:pubAmount},
         {label:'5%營業額', detail:`${money(souffle.revenue)} × 5%`, amount:num(souffle.revenue) * 0.05}
