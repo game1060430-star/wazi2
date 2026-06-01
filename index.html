@@ -19,7 +19,10 @@
         .date-picker-wrap input { background: transparent; border: none; font-size: 18px; font-weight: bold; text-align: center; width: 100%; outline: none; cursor: pointer; color: #333; }
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-size: 11px; color: #777; margin-bottom: 4px; font-weight: bold; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; }
+        .form-group textarea { min-height: 84px; resize: vertical; text-align: left; }
+        .list-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .list-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 5px; }
         .btn-success { background: #28a745; color: white; }
@@ -37,6 +40,39 @@
         .calc-hint { font-size: 11px; color: #d9534f; text-align: right; min-height: 15px; font-weight: bold; }
         .total-row { background: #f0f0f0; font-weight: bold; }
         .grand-total-row { background: #fff5f5; font-weight: bold; color: #d9534f; }
+        .mobile-stack { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .v-row { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 10px; }
+        .v-row b { display: block; margin-bottom: 6px; font-size: 13px; text-align: center; }
+        .vendor-item-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .vendor-item-grid label { display: block; margin-bottom: 4px; color: #777; font-size: 11px; font-weight: bold; text-align: center; }
+        .misc-list { margin-top: 8px; }
+        .misc-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .misc-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
+        @media (max-width: 640px) {
+            body { padding: 8px; font-size: 15px; }
+            .container { max-width: 100%; }
+            .card { border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+            .tabs { grid-template-columns: repeat(3, 1fr); gap: 6px; position: sticky; top: 0; z-index: 10; background: #f4f7f6; padding-bottom: 8px; }
+            .tab-btn { min-height: 44px; padding: 9px 2px; font-size: 12px; }
+            .grid, .stat-grid, #vDailyArea { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+            .cash-coin-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+            .vendor-item-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .form-group input, .form-group select, .form-group textarea, .v-row input { min-height: 46px; font-size: 18px; border-radius: 10px; }
+            .btn { min-height: 46px; font-size: 15px; border-radius: 10px; }
+            table { font-size: 11px; }
+            table th, table td { padding: 6px 4px; }
+        }
+        @media (max-width: 380px) {
+            .tabs { grid-template-columns: repeat(2, 1fr); }
+            .grid, .stat-grid, #vDailyArea { grid-template-columns: 1fr !important; }
+            .vendor-item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media print {
+            body.printing-report * { visibility: hidden; }
+            body.printing-report #report, body.printing-report #report * { visibility: visible; }
+            body.printing-report #report { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            body.printing-report .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -58,7 +94,7 @@
                 <div class="form-group"><label>千元</label><input type="number" inputmode="decimal" id="c1000" oninput="calcDaily()"></div>
                 <div class="form-group"><label>百元</label><input type="number" inputmode="decimal" id="c100" oninput="calcDaily()"></div>
             </div>
-            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="grid cash-coin-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                 <div class="form-group"><label>$50重</label><input type="number" inputmode="decimal" id="w50" oninput="calcDaily()"></div>
                 <div class="form-group"><label>$10重</label><input type="number" inputmode="decimal" id="w10" oninput="calcDaily()"></div>
                 <div class="form-group"><label>$5重</label><input type="number" inputmode="decimal" id="w5" oninput="calcDaily()"></div>
@@ -71,6 +107,15 @@
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
         <div id="vDailyArea" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+        <div class="card">
+            <h4 style="margin:0 0 10px;">雜支</h4>
+            <div class="grid">
+                <div class="form-group"><label>品名</label><input type="text" id="miscName" placeholder="例如：臨時用品"></div>
+                <div class="form-group"><label>金額</label><input type="number" inputmode="numeric" pattern="[0-9]*" id="miscAmount" placeholder="金額"></div>
+            </div>
+            <button class="btn btn-primary" onclick="addMiscExpense()">+ 新增雜支</button>
+            <div id="miscList" class="misc-list"></div>
+        </div>
         <button class="btn btn-success" style="margin-top:15px;" onclick="saveDaily()">✅ 儲存今日數據</button>
     </div>
 
@@ -91,6 +136,7 @@
     <div id="report" class="tab-content">
         <div class="date-picker-wrap"><input type="month" id="rMonth" onchange="genFullReport()"></div>
         <div id="repArea"></div>
+        <button class="btn btn-info no-print" style="margin-top:15px;" onclick="exportReportPdf()">輸出 PDF</button>
     </div>
 
     <div id="monthly" class="tab-content">
@@ -137,8 +183,25 @@
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
         </div>
         <div class="card">
-            <div id="listStaff"></div><button class="btn btn-primary" onclick="addStaff()">+ 員工</button><hr>
-            <div id="listVendor"></div><button class="btn btn-primary" onclick="addVendor()">+ 廠商</button>
+            <h4 class="section-title">員工</h4>
+            <div id="listStaff"></div>
+            <div class="grid">
+                <div class="form-group"><label>姓名</label><input type="text" id="newStaffName"></div>
+                <div class="form-group"><label>時薪</label><input type="number" inputmode="decimal" id="newStaffRate" value="190"></div>
+            </div>
+            <button class="btn btn-primary" onclick="addStaff()">+ 新增員工</button>
+            <hr>
+            <h4 class="section-title">廠商</h4>
+            <div id="listVendor"></div>
+            <div class="grid">
+                <div class="form-group"><label>廠商名稱</label><input type="text" id="newVendorName"></div>
+                <div class="form-group"><label>模式</label><select id="newVendorType" onchange="toggleVendorItemFields()"><option value="金額">金額</option><option value="品項">品項</option></select></div>
+            </div>
+            <div id="vendorItemsFields" class="form-group" style="display:none;">
+                <label>品項與單價，每行一筆，例如：吐司,35</label>
+                <textarea id="newVendorItems" placeholder="吐司,35&#10;漢堡,65"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="addVendor()">+ 新增廠商</button>
         </div>
         <h4 class="section-title">🛠 數據維護</h4>
         <div class="grid" style="grid-template-columns: 1fr 1fr;">
@@ -155,6 +218,7 @@ const KEY = "wazi_v23_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
+let dailyMisc = [];
 
 function initApp(){
     const now = new Date();
@@ -164,7 +228,15 @@ function initApp(){
     document.getElementById('reconMonth').value = localISO.slice(0, 7);
     document.getElementById('rMonth').value = localISO.slice(0, 7);
     document.getElementById('mMonth').value = localISO.slice(0, 7);
+    setupNumericKeyboards();
     loadDaily(); renderRecon(); loadMonthly();
+}
+
+function setupNumericKeyboards(){
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.setAttribute('inputmode', 'numeric');
+        input.setAttribute('pattern', '[0-9]*');
+    });
 }
 
 function switchTab(id){
@@ -192,7 +264,7 @@ function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}, e110:0, e220:0, se110:0, se220:0, w:0, g:0, pub:0, rent:0, taxb:0, lease:0};
     const c = cfg();
-    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={};
+    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
@@ -210,6 +282,11 @@ function genFullReport(){
                 const p=k.split('_'), amt = p.length===3 ? (parseFloat(d.vs[k])*parseFloat(p[2])) : parseFloat(d.vs[k]);
                 vSum[p[0]] = (vSum[p[0]]||0) + amt;
             }
+            (d.misc||[]).forEach(item => {
+                const amt = parseFloat(item.amount)||0;
+                tMisc += amt;
+                miscRows += `<tr><td colspan="4" style="text-align:left;">${date.slice(8)}日 ${item.name}</td><td>$${Math.round(amt).toLocaleString()}</td></tr>`;
+            });
         }
     }
     const tRev = tCash + tOnline + tScan;
@@ -237,25 +314,104 @@ function genFullReport(){
         <h4 class="section-title">📅 每日營收</h4>
         <div class="card" style="padding:0"><table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td colspan="2">$${Math.round(tOnline+tScan).toLocaleString()}</td><td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
         <h4 class="section-title">📦 支出與人事</h4>
-        <div class="card" style="padding:0"><table><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('')}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">固定支出</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">人事成本</th><th>合計</th></tr>${staffHtml}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
-        <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tFixed - tStaff).toLocaleString()}</div>`;
+        <div class="card" style="padding:0"><table><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('')}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">固定支出</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">人事成本</th><th>合計</th></tr>${staffHtml}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
+        <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff).toLocaleString()}</div>`;
+}
+
+function exportReportPdf(){
+    genFullReport();
+    const month = document.getElementById('rMonth').value || 'report';
+    const reportHtml = document.getElementById('repArea').innerHTML;
+    const preview = window.open('', '_blank');
+    if(!preview){
+        alert('瀏覽器阻擋了報表預覽頁，請允許彈出視窗後再試一次');
+        return;
+    }
+    preview.document.open();
+    preview.document.write(`<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wazi ${month} 報表</title>
+    <style>
+        * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
+        body { margin: 0; background: #f4f7f6; color: #222; padding: 12px; }
+        .wrap { max-width: 900px; margin: 0 auto; }
+        .toolbar { position: sticky; top: 0; z-index: 10; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f4f7f6; padding-bottom: 10px; }
+        button { border: 0; border-radius: 10px; padding: 12px; font-weight: bold; color: white; background: #17a2b8; font-size: 16px; }
+        button.close { background: #6c757d; }
+        h2 { text-align: center; margin: 8px 0 14px; }
+        .card { background: white; border-radius: 10px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .section-title { border-left: 4px solid #764ba2; background: #f9f0ff; padding: 6px 8px; font-size: 15px; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-card { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 8px; text-align: center; }
+        .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; background: white; }
+        th, td { border: 1px solid #eee; padding: 7px 4px; text-align: center; }
+        .total-row { background: #f0f0f0; font-weight: bold; }
+        .grand-total-row { background: #fff5f5; font-weight: bold; color: #d9534f; }
+        @media print {
+            body { background: white; padding: 0; }
+            .toolbar { display: none; }
+            .wrap { max-width: none; }
+            .card { box-shadow: none; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="toolbar">
+            <button onclick="window.print()">下載 / 儲存 PDF</button>
+            <button class="close" onclick="window.close()">關閉</button>
+        </div>
+        <h2>Wazi ${month} 報表</h2>
+        ${reportHtml}
+    </div>
+</body>
+</html>`);
+    preview.document.close();
 }
 
 function loadDaily(){
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
+    dailyMisc = d.misc || [];
     let html = ""; const vendors = get('vendors');
     vendors.forEach(v => {
-        if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`; }
-        else { (v.items||[]).forEach(it => { const key = v.name+'_'+it.n+'_'+it.p; html += `<div class="v-row"><b>${v.name}-${it.n}</b><input type="number" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`; }); }
+        if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" inputmode="numeric" pattern="[0-9]*" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`; }
+        else {
+            const itemInputs = (v.items||[]).map(it => {
+                const key = v.name+'_'+it.n+'_'+it.p;
+                return `<div><label>${it.n}</label><input type="number" inputmode="numeric" pattern="[0-9]*" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`;
+            }).join('');
+            html += `<div class="v-row"><b>${v.name}</b><div class="vendor-item-grid">${itemInputs}</div></div>`;
+        }
     });
-    document.getElementById('vDailyArea').innerHTML = html; calcDaily();
+    document.getElementById('vDailyArea').innerHTML = html; renderMiscExpenses(); setupNumericKeyboards(); calcDaily();
+}
+function renderMiscExpenses(){
+    document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>`<div class="misc-row"><span>${item.name}</span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`).join('');
+}
+function addMiscExpense(){
+    const name = document.getElementById('miscName').value.trim();
+    const amount = parseFloat(document.getElementById('miscAmount').value) || 0;
+    if(!name){ alert('請輸入雜支品名'); return; }
+    if(amount <= 0){ alert('請輸入雜支金額'); return; }
+    dailyMisc.push({name, amount});
+    document.getElementById('miscName').value = '';
+    document.getElementById('miscAmount').value = '';
+    renderMiscExpenses();
+}
+function deleteMiscExpense(index){
+    dailyMisc.splice(index, 1);
+    renderMiscExpenses();
 }
 function saveDaily(){
     const date = document.getElementById('logDate').value, vs = {};
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
-    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs });
+    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
     alert('✅ 儲存成功');
 }
 function loadMonthly(){
@@ -269,7 +425,8 @@ function saveMonthlyOnly(){
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
     set('m_'+m, { staff:s, bonus:b, e110:parseFloat(document.getElementById('me110').value)||0, e220:parseFloat(document.getElementById('me220').value)||0, se110:parseFloat(document.getElementById('mse110').value)||0, se220:parseFloat(document.getElementById('mse220').value)||0, w:parseFloat(document.getElementById('mw').value)||0, g:parseFloat(document.getElementById('mg').value)||0, pub:parseFloat(document.getElementById('mpub').value)||0, rent:parseFloat(document.getElementById('mrent').value)||0, taxb:parseFloat(document.getElementById('mtaxb').value)||0, lease:parseFloat(document.getElementById('mlease').value)||0 });
-    alert('✅ 數據已儲存'); switchTab('report');
+    document.getElementById('rMonth').value = m;
+    alert('✅ 數據已儲存'); switchTab('report'); genFullReport();
 }
 function showLiveCalc(type){
     const c = cfg(), cur = parseFloat(document.getElementById('m'+type).value) || 0;
@@ -318,8 +475,9 @@ function manualUpdateVendorTotal(){
 function renderSettings(){
     const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
-    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div>${s.n} ($${s.r}) <button onclick="del('staff',${i})">刪</button></div>`).join('');
-    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div>${v.name} <button onclick="del('vendors',${i})">刪</button></div>`).join('');
+    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
+    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div class="list-row"><span>${v.name} (${v.type}${v.type==='品項' ? ` / ${(v.items||[]).length}項` : ''})</span><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增廠商</div>';
+    toggleVendorItemFields();
 }
 function saveSettings(){
     set('cfg', { ue:parseFloat(document.getElementById('upElec').value), uw:parseFloat(document.getElementById('upWater').value), ug:parseFloat(document.getElementById('upGas').value), petty:parseFloat(document.getElementById('sPetty').value), i110:parseFloat(document.getElementById('si110').value), i220:parseFloat(document.getElementById('si220').value), is110:parseFloat(document.getElementById('sis110').value), is220:parseFloat(document.getElementById('sis220').value), iw:parseFloat(document.getElementById('siw').value), ig:parseFloat(document.getElementById('sig').value) });
@@ -342,9 +500,55 @@ function importData(event) {
     reader.readAsText(file);
 }
 function clearAllData(){ if(confirm('⚠️ 確定清空？')){ localStorage.clear(); location.reload(); } }
-function addStaff(){ const n=prompt('姓名'); if(n){ const s=get('staff'); s.push({n:n, r:parseFloat(prompt('時薪','190'))}); set('staff',s); renderSettings(); } }
-function addVendor(){ const n=prompt('廠商名'); if(n){ const t=confirm('按品項輸入?')?'品項':'金額'; const v=get('vendors'); v.push({name:n, type:t, items:[]}); if(t==='品項'){ let iname; while(iname=prompt('品項名(留空結束)')){ v[v.length-1].items.push({n:iname, p:parseFloat(prompt('單價','0'))}); } } set('vendors',v); renderSettings(); } }
-function del(k,i){ const d=get(k); d.splice(i,1); set(k,d); renderSettings(); }
+function toggleVendorItemFields(){
+    const type = document.getElementById('newVendorType')?.value;
+    const box = document.getElementById('vendorItemsFields');
+    if(box) box.style.display = type === '品項' ? 'block' : 'none';
+}
+function refreshAfterPeopleOrVendorChange(){
+    renderSettings();
+    loadDaily();
+    renderRecon();
+    loadMonthly();
+}
+function addStaff(){
+    const n = document.getElementById('newStaffName').value.trim();
+    const r = parseFloat(document.getElementById('newStaffRate').value) || 0;
+    if(!n){ alert('請輸入員工姓名'); return; }
+    if(r <= 0){ alert('請輸入正確時薪'); return; }
+    const s = get('staff');
+    s.push({n:n, r:r});
+    set('staff',s);
+    document.getElementById('newStaffName').value = '';
+    document.getElementById('newStaffRate').value = '190';
+    refreshAfterPeopleOrVendorChange();
+}
+function addVendor(){
+    const n = document.getElementById('newVendorName').value.trim();
+    const t = document.getElementById('newVendorType').value;
+    if(!n){ alert('請輸入廠商名稱'); return; }
+    const v = get('vendors');
+    const vendor = {name:n, type:t, items:[]};
+    if(t === '品項'){
+        vendor.items = document.getElementById('newVendorItems').value.split('\n').map(line => {
+            const parts = line.split(',').map(s => s.trim());
+            return {n:parts[0], p:parseFloat(parts[1]) || 0};
+        }).filter(item => item.n && item.p > 0);
+        if(vendor.items.length === 0){ alert('品項模式請至少輸入一筆品項與單價'); return; }
+    }
+    v.push(vendor);
+    set('vendors',v);
+    document.getElementById('newVendorName').value = '';
+    document.getElementById('newVendorType').value = '金額';
+    document.getElementById('newVendorItems').value = '';
+    refreshAfterPeopleOrVendorChange();
+}
+function del(k,i){
+    const d=get(k);
+    d.splice(i,1);
+    set(k,d);
+    refreshAfterPeopleOrVendorChange();
+}
 window.addEventListener('load', initApp);
 </script>
 </body>
