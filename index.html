@@ -6,61 +6,77 @@
     <title>Wazi 管理系統 V23.10</title>
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
-        body { background: #f4f7f6; margin: 0; padding: 10px; color: #333; font-size: 14px; }
+        :root {
+            --bg: #f3f5f2;
+            --card: #ffffff;
+            --text: #26322d;
+            --muted: #728078;
+            --line: #e2e8e1;
+            --primary: #4f7d5f;
+            --primary-dark: #356247;
+            --accent: #bf6f45;
+            --danger: #c94f4f;
+            --info: #3c7f99;
+        }
+        body { background: var(--bg); margin: 0; padding: 10px; color: var(--text); font-size: 14px; }
         .container { max-width: 850px; margin: 0 auto; }
-        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .card { background: var(--card); border: 1px solid rgba(53,98,71,0.08); border-radius: 10px; padding: 15px; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(38,50,45,0.07); }
         .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-        .tab-btn { padding: 12px 2px; background: #e0e0e0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
-        .tab-btn.active { background: #764ba2; color: white; }
-        .tab-btn.refresh-btn { background: #17a2b8; color: white; }
+        .tab-btn { padding: 12px 2px; background: #e5ebe4; border: 1px solid #d8e1d6; border-radius: 8px; color: var(--text); font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); border-color: var(--primary); color: white; box-shadow: 0 3px 10px rgba(79,125,95,0.25); }
+        .tab-btn.refresh-btn { background: var(--info); border-color: var(--info); color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .date-picker-wrap { background: #e9ecef; border-radius: 10px; padding: 10px; display: flex; justify-content: center; align-items: center; margin-bottom: 12px; }
-        .date-picker-wrap input { background: transparent; border: none; font-size: 18px; font-weight: bold; text-align: center; width: 100%; outline: none; cursor: pointer; color: #333; }
+        .date-picker-wrap { background: #e5ebe4; border-radius: 10px; padding: 10px; display: flex; justify-content: center; align-items: center; margin-bottom: 12px; border: 1px solid #d8e1d6; }
+        .date-picker-wrap input { background: transparent; border: none; font-size: 18px; font-weight: bold; text-align: center; width: 100%; outline: none; cursor: pointer; color: var(--text); }
         .form-group { margin-bottom: 10px; }
-        .form-group label { display: block; font-size: 11px; color: #777; margin-bottom: 4px; font-weight: bold; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; }
+        .form-group label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px; text-align: center; background: #fbfcfb; color: var(--text); }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: 2px solid rgba(79,125,95,0.22); border-color: var(--primary); background: #fff; }
         .form-group textarea { min-height: 84px; resize: vertical; text-align: left; }
         .list-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }
         .list-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-primary { background: #007bff; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        .btn-info { background: #17a2b8; color: white; }
+        .btn-success { background: var(--primary); color: white; }
+        .btn-primary { background: #4e78b8; color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--accent); color: white; }
+        .btn-info { background: var(--info); color: white; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        table th, table td { border: 1px solid #eee; padding: 8px; text-align: center; }
-        .section-title { border-left: 4px solid #764ba2; padding-left: 8px; margin: 15px 0 10px; font-size: 15px; font-weight: bold; background: #f9f0ff; padding: 5px; }
-        .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
+        table th, table td { border: 1px solid var(--line); padding: 8px; text-align: center; }
+        table th { background: #eef4ec; color: var(--primary-dark); }
+        .section-title { border-left: 4px solid var(--primary); padding-left: 8px; margin: 15px 0 10px; font-size: 15px; font-weight: bold; background: #eef4ec; padding: 7px 8px; border-radius: 6px; }
+        .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: var(--primary-dark); color: #fff; border-radius: 8px; margin-top: 10px; }
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .stat-card { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 8px; text-align: center; }
-        .stat-card b { font-size: 15px; color: #764ba2; }
-        .calc-hint { font-size: 11px; color: #d9534f; text-align: right; min-height: 15px; font-weight: bold; }
-        .total-row { background: #f0f0f0; font-weight: bold; }
-        .grand-total-row { background: #fff5f5; font-weight: bold; color: #d9534f; }
+        .stat-card { background: #fbfcfb; border: 1px solid var(--line); padding: 10px; border-radius: 8px; text-align: center; }
+        .stat-card b { font-size: 16px; color: var(--primary-dark); }
+        .calc-hint { font-size: 11px; color: var(--danger); text-align: right; min-height: 15px; font-weight: bold; }
+        .total-row { background: #eef4ec; font-weight: bold; }
+        .grand-total-row { background: #fff4ee; font-weight: bold; color: #a9472f; }
         .mobile-stack { display: grid; grid-template-columns: 1fr; gap: 8px; }
-        .v-row { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 10px; }
+        .v-row { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 2px 8px rgba(38,50,45,0.04); }
         .v-row b { display: block; margin-bottom: 6px; font-size: 13px; text-align: center; }
         .vendor-item-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-        .vendor-item-grid label { display: block; margin-bottom: 4px; color: #777; font-size: 11px; font-weight: bold; text-align: center; }
+        .vendor-item-grid label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: bold; text-align: center; }
         .misc-list { margin-top: 8px; }
         .misc-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
         .misc-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
+        .report-card { overflow: visible; }
+        .report-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 4px 0 10px; }
         @media (max-width: 640px) {
             body { padding: 8px; font-size: 15px; }
             .container { max-width: 100%; }
             .card { border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-            .tabs { grid-template-columns: repeat(3, 1fr); gap: 6px; position: sticky; top: 0; z-index: 10; background: #f4f7f6; padding-bottom: 8px; }
+            .tabs { grid-template-columns: repeat(3, 1fr); gap: 6px; position: sticky; top: 0; z-index: 10; background: var(--bg); padding-bottom: 8px; }
             .tab-btn { min-height: 44px; padding: 9px 2px; font-size: 12px; }
             .grid, .stat-grid, #vDailyArea { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
             .cash-coin-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-            .vendor-item-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-            .form-group input, .form-group select, .form-group textarea, .v-row input { min-height: 46px; font-size: 18px; border-radius: 10px; }
+            .vendor-item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .form-group input, .form-group select, .form-group textarea, .v-row input { min-height: 48px; font-size: 18px; border-radius: 10px; }
             .btn { min-height: 46px; font-size: 15px; border-radius: 10px; }
-            table { font-size: 11px; }
-            table th, table td { padding: 6px 4px; }
+            table { font-size: 10px; table-layout: fixed; }
+            table th, table td { padding: 6px 3px; word-break: break-word; }
         }
         @media (max-width: 380px) {
             .tabs { grid-template-columns: repeat(2, 1fr); }
@@ -219,6 +235,8 @@ const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const cfg = ()=>JSON.parse(localStorage.getItem(KEY+'cfg')) || {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
 let dailyMisc = [];
+const num = (v)=>parseFloat(v) || 0;
+const money = (v)=>`$${Math.round(num(v)).toLocaleString()}`;
 
 function initApp(){
     const now = new Date();
@@ -236,7 +254,33 @@ function setupNumericKeyboards(){
     document.querySelectorAll('input[type="number"]').forEach(input => {
         input.setAttribute('inputmode', 'numeric');
         input.setAttribute('pattern', '[0-9]*');
+        input.setAttribute('enterkeyhint', 'done');
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('step', 'any');
     });
+}
+
+function getMonthlyData(month){
+    return JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}, e110:0, e220:0, se110:0, se220:0, w:0, g:0, pub:0, rent:0, taxb:0, lease:0};
+}
+
+function getFixedExpenseRows(m, c){
+    const e110Use = Math.max(0, num(m.e110) - num(c.i110));
+    const e220Use = Math.max(0, num(m.e220) - num(c.i220));
+    const se110Use = Math.max(0, num(m.se110) - num(c.is110));
+    const se220Use = Math.max(0, num(m.se220) - num(c.is220));
+    const eNet = Math.max(0, e110Use + e220Use - se110Use - se220Use);
+    const waterUse = Math.max(0, num(m.w) - num(c.iw));
+    const gasUse = Math.max(0, num(m.g) - num(c.ig));
+    return [
+        {label:'房租', detail:'月租金', amount:num(m.rent)},
+        {label:'公攤', detail:`輸入 ${money(m.pub)} × 0.75`, amount:num(m.pub) * 0.75},
+        {label:'設備租賃', detail:'月固定設備費', amount:num(m.lease)},
+        {label:'電費', detail:`${eNet.toFixed(1)} 度 × ${money(c.ue)}`, amount:eNet * num(c.ue)},
+        {label:'水費', detail:`${waterUse.toFixed(1)} 度 × ${money(c.uw)}`, amount:waterUse * num(c.uw)},
+        {label:'瓦斯', detail:`${gasUse.toFixed(1)} 度 × ${money(c.ug)}`, amount:gasUse * num(c.ug)},
+        {label:'稅金', detail:`稅金基數 ${money(m.taxb)} × 5%`, amount:num(m.taxb) * 0.05}
+    ];
 }
 
 function switchTab(id){
@@ -262,7 +306,7 @@ function calcDaily(){
 
 function genFullReport(){
     const month = document.getElementById('rMonth').value;
-    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}, e110:0, e220:0, se110:0, se220:0, w:0, g:0, pub:0, rent:0, taxb:0, lease:0};
+    const m = getMonthlyData(month);
     const c = cfg();
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
     for(let i=1; i<=31; i++){
@@ -290,14 +334,12 @@ function genFullReport(){
         }
     }
     const tRev = tCash + tOnline + tScan;
-    const eNet = (m.e110||c.i110)-c.i110 + (m.e220||c.i220)-c.i220 - ((m.se110||c.is110)-c.is110) - ((m.se220||c.is220)-c.is220);
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
     let tFixed = 0;
-    const fixedRows = [
-        {n:'房租',v:m.rent, raw:`房租`}, {n:'公攤(0.75折)',v:(m.pub||0)*0.75, raw:`公攤($${m.pub||0})`}, {n:'設備',v:m.lease, raw:`設備租賃`},
-        {n:'電費',v:eNet*c.ue, raw:`電(${eNet.toFixed(1)}度)`}, {n:'水費',v:((m.w||c.iw)-c.iw)*c.uw, raw:`水(${(m.w||c.iw)-c.iw}度)`},
-        {n:'瓦斯',v:((m.g||c.ig)-c.ig)*c.ug, raw:`瓦斯(${(m.g||c.ig)-c.ig}度)`}, {n:'稅金',v:(m.taxb||0)*0.05, raw:`稅金基數5%`}
-    ].map(f=>{ tFixed += (f.v||0); return `<tr><td colspan="4" style="text-align:left;">${f.raw}</td><td>$${Math.round(f.v||0).toLocaleString()}</td></tr>`; }).join('');
+    const fixedRows = getFixedExpenseRows(m, c).map(f=>{
+        tFixed += f.amount;
+        return `<tr><td colspan="2" style="text-align:left;">${f.label}</td><td colspan="2" style="text-align:left;">${f.detail}</td><td>${money(f.amount)}</td></tr>`;
+    }).join('');
 
     let tStaff = 0;
     const staffHtml = get('staff').map(s => {
@@ -312,9 +354,9 @@ function genFullReport(){
             <div class="stat-card">平均日營業額<br><b>$${tDays>0?Math.round(tRev/tDays).toLocaleString():0}</b></div>
         </div>
         <h4 class="section-title">📅 每日營收</h4>
-        <div class="card" style="padding:0"><table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td colspan="2">$${Math.round(tOnline+tScan).toLocaleString()}</td><td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
+        <div class="card report-card" style="padding:0"><table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows || '<tr><td colspan="5">本月尚無每日記帳資料</td></tr>'}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td colspan="2">$${Math.round(tOnline+tScan).toLocaleString()}</td><td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
         <h4 class="section-title">📦 支出與人事</h4>
-        <div class="card" style="padding:0"><table><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('')}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">固定支出</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left; background:#f0f0f0;">人事成本</th><th>合計</th></tr>${staffHtml}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
+        <div class="card report-card" style="padding:0"><table><tr><th colspan="4" style="text-align:left;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="5">無廠商進貨</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="2" style="text-align:left;">固定支出</th><th colspan="2" style="text-align:left;">計算方式</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">人事成本</th><th>合計</th></tr>${staffHtml || '<tr><td colspan="5">無人事資料</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
         <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff).toLocaleString()}</div>`;
 }
 
@@ -336,21 +378,27 @@ function exportReportPdf(){
     <title>Wazi ${month} 報表</title>
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
-        body { margin: 0; background: #f4f7f6; color: #222; padding: 12px; }
+        body { margin: 0; background: #f3f5f2; color: #26322d; padding: 12px; }
         .wrap { max-width: 900px; margin: 0 auto; }
-        .toolbar { position: sticky; top: 0; z-index: 10; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f4f7f6; padding-bottom: 10px; }
-        button { border: 0; border-radius: 10px; padding: 12px; font-weight: bold; color: white; background: #17a2b8; font-size: 16px; }
+        .toolbar { position: sticky; top: 0; z-index: 10; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f3f5f2; padding-bottom: 10px; }
+        button { border: 0; border-radius: 10px; padding: 12px; font-weight: bold; color: white; background: #3c7f99; font-size: 16px; }
         button.close { background: #6c757d; }
         h2 { text-align: center; margin: 8px 0 14px; }
-        .card { background: white; border-radius: 10px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .section-title { border-left: 4px solid #764ba2; background: #f9f0ff; padding: 6px 8px; font-size: 15px; }
+        .card { background: white; border: 1px solid #e2e8e1; border-radius: 10px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(38,50,45,0.06); }
+        .section-title { border-left: 4px solid #4f7d5f; background: #eef4ec; padding: 6px 8px; font-size: 15px; border-radius: 6px; }
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .stat-card { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 8px; text-align: center; }
-        .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #333; color: #fff; border-radius: 8px; margin-top: 10px; }
+        .stat-card { background: #fbfcfb; border: 1px solid #e2e8e1; padding: 10px; border-radius: 8px; text-align: center; }
+        .stat-card b { color: #356247; }
+        .profit-box { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; background: #356247; color: #fff; border-radius: 8px; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; background: white; }
-        th, td { border: 1px solid #eee; padding: 7px 4px; text-align: center; }
-        .total-row { background: #f0f0f0; font-weight: bold; }
-        .grand-total-row { background: #fff5f5; font-weight: bold; color: #d9534f; }
+        th, td { border: 1px solid #e2e8e1; padding: 7px 4px; text-align: center; word-break: break-word; }
+        th { background: #eef4ec; color: #356247; }
+        .total-row { background: #eef4ec; font-weight: bold; }
+        .grand-total-row { background: #fff4ee; font-weight: bold; color: #a9472f; }
+        @media (max-width: 640px) {
+            table { table-layout: fixed; font-size: 10px; }
+            th, td { padding: 6px 3px; }
+        }
         @media print {
             body { background: white; padding: 0; }
             .toolbar { display: none; }
@@ -419,6 +467,7 @@ function loadMonthly(){
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb','lease'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
     ['e110','e220','se110','se220','w','g'].forEach(showLiveCalc);
+    setupNumericKeyboards();
 }
 function saveMonthlyOnly(){
     const m = document.getElementById('mMonth').value, s={}, b={};
