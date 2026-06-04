@@ -243,6 +243,7 @@ const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KE
 let dailyMisc = [];
 const num = (v)=>parseFloat(v) || 0;
 const money = (v)=>`$${Math.round(num(v)).toLocaleString()}`;
+const unitMoney = (v)=>`$${num(v).toLocaleString(undefined, {maximumFractionDigits: 4})}`;
 
 function initApp(){
     const now = new Date();
@@ -280,7 +281,7 @@ function getMonthlyCalcBase(m, c){
 function lockMonthlyRatesForPdf(month){
     const c = cfg();
     const m = getMonthlyData(month);
-    if(!confirm(`輸出 PDF 前請確認本月單價無誤：\n\n電單價：${money(c.ue)}\n水單價：${money(c.uw)}\n瓦斯單價：${money(c.ug)}\n\n確認後會鎖定 ${month} 的水電瓦斯單價，之後設定頁改單價也不會影響這個月份。\n\n確定要輸出 PDF 嗎？`)) return false;
+    if(!confirm(`輸出 PDF 前請確認本月單價無誤：\n\n電單價：${unitMoney(c.ue)}\n水單價：${unitMoney(c.uw)}\n瓦斯單價：${unitMoney(c.ug)}\n\n確認後會鎖定 ${month} 的水電瓦斯單價，之後設定頁改單價也不會影響這個月份。\n\n確定要輸出 PDF 嗎？`)) return false;
     m.rates = {ue:num(c.ue), uw:num(c.uw), ug:num(c.ug)};
     m.pdfLocked = true;
     set('m_'+month, m);
@@ -305,9 +306,9 @@ function getFixedExpenseRows(m, c){
     return [
         {label:'房租', detail:'月租金', amount:num(m.rent)},
         {label:'公攤', detail:`輸入 ${money(m.pub)} × 0.75`, amount:num(m.pub) * 0.75},
-        {label:'電費', detail:`總110 ${num(start.i110)}→${num(m.e110)}，總220 ${num(start.i220)}→${num(m.e220)}，分表扣 ${se110Use.toFixed(1)}+${se220Use.toFixed(1)}，實用 ${eNet.toFixed(1)} 度 × ${money(rates.ue)}`, amount:eNet * num(rates.ue)},
-        {label:'水費', detail:`${num(start.iw)}→${num(m.w)}，用量 ${waterUse.toFixed(1)} 度 × ${money(rates.uw)}`, amount:waterUse * num(rates.uw)},
-        {label:'瓦斯', detail:`${num(start.ig)}→${num(m.g)}，用量 ${gasUse.toFixed(1)} 度 × ${money(rates.ug)}`, amount:gasUse * num(rates.ug)},
+        {label:'電費', detail:`總110 ${num(start.i110)}→${num(m.e110)}，總220 ${num(start.i220)}→${num(m.e220)}，分表扣 ${se110Use.toFixed(1)}+${se220Use.toFixed(1)}，實用 ${eNet.toFixed(1)} 度 × ${unitMoney(rates.ue)}`, amount:eNet * num(rates.ue)},
+        {label:'水費', detail:`${num(start.iw)}→${num(m.w)}，用量 ${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterUse * num(rates.uw)},
+        {label:'瓦斯', detail:`${num(start.ig)}→${num(m.g)}，用量 ${gasUse.toFixed(1)} 度 × ${unitMoney(rates.ug)}`, amount:gasUse * num(rates.ug)},
         {label:'稅金', detail:`稅金基數 ${money(m.taxb)} × 5%`, amount:num(m.taxb) * 0.05}
     ];
 }
@@ -327,8 +328,8 @@ function getSouffleExpenseRows(m, c){
     };
     return [
         {label:'租金', detail:'本月舒芙蕾租金', amount:num(souffle.rent)},
-        {label:'電費', detail:`舒芙蕾分表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × 店裡電單價 ${money(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
-        {label:'水費', detail:`同主報表水費：${waterUse.toFixed(1)} 度 × ${money(rates.uw)}`, amount:waterAmount},
+        {label:'電費', detail:`舒芙蕾分表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × 店裡電單價 ${unitMoney(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
+        {label:'水費', detail:`同主報表水費：${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterAmount},
         {label:'公攤費', detail:`同主報表公攤：${money(m.pub)} × 0.75`, amount:pubAmount},
         {label:'5%營業額', detail:`${money(souffle.revenue)} × 5%`, amount:num(souffle.revenue) * 0.05}
     ];
@@ -583,7 +584,8 @@ function showLiveCalc(type){
     const startKey = {e110:'i110',e220:'i220',se110:'is110',se220:'is220',w:'iw',g:'ig'}[type];
     const diff = Math.max(0, cur - (c[startKey]||0));
     const amt = diff * (type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug));
-    if(document.getElementById('hint_'+type)) document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} | 預估: $${Math.round(amt)}`;
+    const rate = type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug);
+    if(document.getElementById('hint_'+type)) document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} × ${unitMoney(rate)} | 預估: $${Math.round(amt)}`;
 }
 function manualReplaceStartDegrees(){
     const currentMonth = document.getElementById('mMonth').value;
