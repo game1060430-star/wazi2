@@ -273,7 +273,7 @@ function getMonthlyData(month){
 function getMonthlyCalcBase(m, c){
     return {
         start: m.start || {i110:c.i110, i220:c.i220, is110:c.is110, is220:c.is220, iw:c.iw, ig:c.ig},
-        rates: m.rates || {ue:c.ue, uw:c.uw, ug:c.ug}
+        rates: {ue:c.ue, uw:c.uw, ug:c.ug}
     };
 }
 
