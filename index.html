@@ -273,8 +273,18 @@ function getMonthlyData(month){
 function getMonthlyCalcBase(m, c){
     return {
         start: m.start || {i110:c.i110, i220:c.i220, is110:c.is110, is220:c.is220, iw:c.iw, ig:c.ig},
-        rates: {ue:c.ue, uw:c.uw, ug:c.ug}
+        rates: m.pdfLocked && m.rates ? m.rates : {ue:c.ue, uw:c.uw, ug:c.ug}
     };
+}
+
+function lockMonthlyRatesForPdf(month){
+    const c = cfg();
+    const m = getMonthlyData(month);
+    if(!confirm(`輸出 PDF 前請確認本月單價無誤：\n\n電單價：${money(c.ue)}\n水單價：${money(c.uw)}\n瓦斯單價：${money(c.ug)}\n\n確認後會鎖定 ${month} 的水電瓦斯單價，之後設定頁改單價也不會影響這個月份。\n\n確定要輸出 PDF 嗎？`)) return false;
+    m.rates = {ue:num(c.ue), uw:num(c.uw), ug:num(c.ug)};
+    m.pdfLocked = true;
+    set('m_'+month, m);
+    return true;
 }
 
 function nextMonthValue(month){
@@ -424,8 +434,9 @@ function renderSouffleReport(shouldScroll = true){
 }
 
 function exportReportPdf(){
-    genFullReport();
     const month = document.getElementById('rMonth').value || 'report';
+    if(!lockMonthlyRatesForPdf(month)) return;
+    genFullReport();
     const reportHtml = document.getElementById('repArea').innerHTML + document.getElementById('souffleArea').innerHTML;
     const preview = window.open('', '_blank');
     if(!preview){
