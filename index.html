@@ -356,10 +356,21 @@ function calcDaily(){
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(result).toLocaleString()}`;
 }
 
+function getVendorEntry(entryKey, entryValue, vendors){
+    const vendor = vendors
+        .filter(v => entryKey === v.name || entryKey.startsWith(v.name+'_'))
+        .sort((a,b) => b.name.length - a.name.length)[0];
+    if(!vendor) return null;
+    if(entryKey === vendor.name) return {name:vendor.name, amount:num(entryValue)};
+    const price = num(entryKey.slice(entryKey.lastIndexOf('_') + 1));
+    return {name:vendor.name, amount:num(entryValue) * price};
+}
+
 function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = getMonthlyData(month);
     const c = cfg();
+    const activeVendors = get('vendors');
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
@@ -375,8 +386,9 @@ function genFullReport(){
                 tCash += cash; tOnline += val(d.pOnline); tScan += val(d.pScan); tDays++;
             }
             if(d.vs) for(let k in d.vs){
-                const p=k.split('_'), amt = p.length===3 ? (parseFloat(d.vs[k])*parseFloat(p[2])) : parseFloat(d.vs[k]);
-                vSum[p[0]] = (vSum[p[0]]||0) + amt;
+                const entry = getVendorEntry(k, d.vs[k], activeVendors);
+                if(!entry) continue;
+                vSum[entry.name] = (vSum[entry.name]||0) + entry.amount;
             }
             (d.misc||[]).forEach(item => {
                 const amt = parseFloat(item.amount)||0;
