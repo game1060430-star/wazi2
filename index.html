@@ -719,8 +719,29 @@ function addVendor(){
     document.getElementById('newVendorItems').value = '';
     refreshAfterPeopleOrVendorChange();
 }
+function purgeVendorHistory(vendorName){
+    Object.keys(localStorage).forEach(key => {
+        if(!key.startsWith(KEY+'d_')) return;
+        const daily = JSON.parse(localStorage.getItem(key)) || {};
+        if(!daily.vs) return;
+        let changed = false;
+        Object.keys(daily.vs).forEach(entry => {
+            if(entry === vendorName || entry.startsWith(vendorName+'_')){
+                delete daily.vs[entry];
+                changed = true;
+            }
+        });
+        if(changed) localStorage.setItem(key, JSON.stringify(daily));
+    });
+}
 function del(k,i){
     const d=get(k);
+    if(k === 'vendors'){
+        const vendor = d[i];
+        if(!vendor) return;
+        if(!confirm(`確定刪除廠商「${vendor.name}」？\n\n此廠商所有每日記帳與報表進貨紀錄也會一併刪除。`)) return;
+        purgeVendorHistory(vendor.name);
+    }
     d.splice(i,1);
     set(k,d);
     refreshAfterPeopleOrVendorChange();
