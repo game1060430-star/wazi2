@@ -373,7 +373,7 @@ function scheduleDailyAutosave(){
 function scheduleMonthlyAutosave(){
     if(isLoadingMonthly) return;
     clearTimeout(scheduleMonthlyAutosave.timer);
-    scheduleMonthlyAutosave.timer = setTimeout(() => saveMonthlyDraft(true), 900);
+    scheduleMonthlyAutosave.timer = setTimeout(() => saveMonthlyData(true), 900);
 }
 
 function bindMonthlyAutosave(){
@@ -627,10 +627,15 @@ function collectMonthlyData(){
         taxb:parseFloat(document.getElementById('mtaxb').value)||0
     };
 }
-function saveMonthlyDraft(isAuto = false){
+function refreshReportIfSameMonth(month){
+    const reportMonth = document.getElementById('rMonth')?.value;
+    if(reportMonth === month) genFullReport();
+}
+function saveMonthlyData(isAuto = false){
     const m = document.getElementById('mMonth').value;
     set('m_'+m, collectMonthlyData());
-    showSaveToast(isAuto ? '月結算已暫存' : '✅ 月結算已暫存');
+    refreshReportIfSameMonth(m);
+    showSaveToast(isAuto ? '月結算已儲存' : '✅ 月結算已儲存');
 }
 function updateStartDegreesFromMonthly(){
     const c = cfg();
@@ -644,10 +649,10 @@ function updateStartDegreesFromMonthly(){
 }
 function saveMonthlyOnly(){
     const m = document.getElementById('mMonth').value;
-    saveMonthlyDraft(false);
+    saveMonthlyData(false);
     updateStartDegreesFromMonthly();
     document.getElementById('rMonth').value = m;
-    showSaveToast('✅ 本月報表數據已儲存');
+    showSaveToast('✅ 本月報表已更新');
     switchTab('report'); genFullReport();
 }
 function showLiveCalc(type){
