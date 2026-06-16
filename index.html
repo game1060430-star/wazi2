@@ -171,7 +171,6 @@
                 <div class="form-group"><label>公攤額</label><input type="number" inputmode="decimal" id="mpub"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" inputmode="decimal" id="mtaxb"></div>
             </div>
-            <button class="btn btn-warning" onclick="manualReplaceStartDegrees()">📍 更新度數為下月起始值</button>
             <h4 class="section-title">👥 薪資獎金</h4>
             <div id="mStaffArea"></div>
             <h4 class="section-title">舒芙蕾報表</h4>
@@ -291,12 +290,6 @@ function lockMonthlyRatesForPdf(month){
     m.pdfLocked = true;
     set('m_'+month, m);
     return true;
-}
-
-function nextMonthValue(month){
-    const [year, monthNum] = month.split('-').map(Number);
-    const next = new Date(year, monthNum, 1);
-    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function getFixedExpenseRows(m, c){
@@ -639,9 +632,20 @@ function saveMonthlyDraft(isAuto = false){
     set('m_'+m, collectMonthlyData());
     showSaveToast(isAuto ? '月結算已暫存' : '✅ 月結算已暫存');
 }
+function updateStartDegreesFromMonthly(){
+    const c = cfg();
+    c.i110=parseFloat(document.getElementById('me110').value)||0;
+    c.i220=parseFloat(document.getElementById('me220').value)||0;
+    c.is110=parseFloat(document.getElementById('mse110').value)||0;
+    c.is220=parseFloat(document.getElementById('mse220').value)||0;
+    c.iw=parseFloat(document.getElementById('mw').value)||0;
+    c.ig=parseFloat(document.getElementById('mg').value)||0;
+    set('cfg', c);
+}
 function saveMonthlyOnly(){
     const m = document.getElementById('mMonth').value;
     saveMonthlyDraft(false);
+    updateStartDegreesFromMonthly();
     document.getElementById('rMonth').value = m;
     showSaveToast('✅ 本月報表數據已儲存');
     switchTab('report'); genFullReport();
@@ -654,24 +658,6 @@ function showLiveCalc(type){
     const rate = type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug);
     if(document.getElementById('hint_'+type)) document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} × ${unitMoney(rate)} | 預估: $${Math.round(amt)}`;
     scheduleMonthlyAutosave();
-}
-function manualReplaceStartDegrees(){
-    const currentMonth = document.getElementById('mMonth').value;
-    const nextMonth = nextMonthValue(currentMonth);
-    const hasSavedReport = !!localStorage.getItem(KEY+'m_'+currentMonth);
-    if(!hasSavedReport && !confirm(`${currentMonth} 尚未儲存本月報表數據。\n\n如果直接更新，設定會變成 ${nextMonth} 的起始度數，但 ${currentMonth} 報表可能缺少保存基準。\n\n仍要繼續嗎？`)) return;
-    if(!confirm(`將 ${currentMonth} 的結束度數更新為 ${nextMonth} 的起始度數？\n\n${currentMonth} 已儲存的報表會保持原本數字。`)) return;
-    const c = cfg();
-    c.i110=parseFloat(document.getElementById('me110').value)||0;
-    c.i220=parseFloat(document.getElementById('me220').value)||0;
-    c.is110=parseFloat(document.getElementById('mse110').value)||0;
-    c.is220=parseFloat(document.getElementById('mse220').value)||0;
-    c.iw=parseFloat(document.getElementById('mw').value)||0;
-    c.ig=parseFloat(document.getElementById('mg').value)||0;
-    set('cfg', c);
-    document.getElementById('mMonth').value = nextMonth;
-    loadMonthly();
-    alert(`起始度數已同步，月結算已切到 ${nextMonth}`);
 }
 function renderRecon(){
     const vs = get('vendors');
