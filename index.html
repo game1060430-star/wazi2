@@ -195,6 +195,7 @@
             </div>
             <h4 class="section-title">當前起始度數</h4>
             <div class="grid">
+                <div class="form-group"><label>起始度數月份</label><input type="month" id="sStartMonth"></div>
                 <div class="form-group"><label>總110</label><input type="number" id="si110"></div>
                 <div class="form-group"><label>總220</label><input type="number" id="si220"></div>
                 <div class="form-group"><label>分110</label><input type="number" id="sis110"></div>
@@ -240,7 +241,7 @@
 const KEY = "wazi_v23_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
-const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
+const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:''};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
 let isLoadingDaily = false;
@@ -248,6 +249,40 @@ let isLoadingMonthly = false;
 const num = (v)=>parseFloat(v) || 0;
 const money = (v)=>`$${Math.round(num(v)).toLocaleString()}`;
 const unitMoney = (v)=>`$${num(v).toLocaleString(undefined, {maximumFractionDigits: 4})}`;
+
+function currentMonthValue(){
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    return (new Date(Date.now() - tzOffset)).toISOString().slice(0, 7);
+}
+
+function nextMonthValue(month){
+    if(!month) return '';
+    const [year, monthNum] = month.split('-').map(Number);
+    if(!year || !monthNum) return '';
+    const next = new Date(year, monthNum, 1);
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function startFromCfg(c){
+    return {i110:num(c.i110), i220:num(c.i220), is110:num(c.is110), is220:num(c.is220), iw:num(c.iw), ig:num(c.ig)};
+}
+
+function saveStartForMonth(month, start){
+    if(month) set('start_'+month, start);
+}
+
+function getSavedStartForMonth(month){
+    const start = JSON.parse(localStorage.getItem(KEY+'start_'+month));
+    return start && typeof start === 'object' ? start : null;
+}
+
+function getStartForMonth(month, c, monthlyData = null){
+    if(monthlyData?.start) return monthlyData.start;
+    const savedStart = getSavedStartForMonth(month);
+    if(savedStart) return savedStart;
+    return startFromCfg(c);
+}
 
 function initApp(){
     const now = new Date();
@@ -272,12 +307,14 @@ function setupNumericKeyboards(){
 }
 
 function getMonthlyData(month){
-    return JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}, e110:0, e220:0, se110:0, se220:0, w:0, g:0, pub:0, rent:0, taxb:0, lease:0};
+    const data = JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}, e110:0, e220:0, se110:0, se220:0, w:0, g:0, pub:0, rent:0, taxb:0, lease:0};
+    if(!data.start) data.start = getStartForMonth(month, cfg(), data);
+    return data;
 }
 
-function getMonthlyCalcBase(m, c){
+function getMonthlyCalcBase(m, c, month = ''){
     return {
-        start: m.start || {i110:c.i110, i220:c.i220, is110:c.is110, is220:c.is220, iw:c.iw, ig:c.ig},
+        start: getStartForMonth(month, c, m),
         rates: m.pdfLocked && m.rates ? m.rates : {ue:c.ue, uw:c.uw, ug:c.ug}
     };
 }
@@ -605,6 +642,7 @@ function loadMonthly(){
 function collectMonthlyData(){
     const m = document.getElementById('mMonth').value, s={}, b={};
     const c = cfg();
+    const existingMonth = getMonthlyData(m);
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
     return {
@@ -614,7 +652,7 @@ function collectMonthlyData(){
             rent:parseFloat(document.getElementById('msouffleRent').value)||0,
             revenue:parseFloat(document.getElementById('msouffleRevenue').value)||0
         },
-        start:{i110:num(c.i110), i220:num(c.i220), is110:num(c.is110), is220:num(c.is220), iw:num(c.iw), ig:num(c.ig)},
+        start:getStartForMonth(m, c, existingMonth),
         rates:{ue:num(c.ue), uw:num(c.uw), ug:num(c.ug)},
         e110:parseFloat(document.getElementById('me110').value)||0,
         e220:parseFloat(document.getElementById('me220').value)||0,
@@ -639,13 +677,17 @@ function saveMonthlyData(isAuto = false){
 }
 function updateStartDegreesFromMonthly(){
     const c = cfg();
+    const month = document.getElementById('mMonth').value;
+    const nextMonth = nextMonthValue(month);
     c.i110=parseFloat(document.getElementById('me110').value)||0;
     c.i220=parseFloat(document.getElementById('me220').value)||0;
     c.is110=parseFloat(document.getElementById('mse110').value)||0;
     c.is220=parseFloat(document.getElementById('mse220').value)||0;
     c.iw=parseFloat(document.getElementById('mw').value)||0;
     c.ig=parseFloat(document.getElementById('mg').value)||0;
+    c.startMonth = nextMonth;
     set('cfg', c);
+    saveStartForMonth(nextMonth, startFromCfg(c));
 }
 function saveMonthlyOnly(){
     const m = document.getElementById('mMonth').value;
@@ -702,12 +744,15 @@ function manualUpdateVendorTotal(){
 function renderSettings(){
     const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
+    if(document.getElementById('sStartMonth')) document.getElementById('sStartMonth').value = c.startMonth || document.getElementById('mMonth')?.value || currentMonthValue();
     document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
     document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div class="list-row"><span>${v.name} (${v.type}${v.type==='品項' ? ` / ${(v.items||[]).length}項` : ''})</span><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增廠商</div>';
     toggleVendorItemFields();
 }
 function saveSettings(){
-    set('cfg', {
+    const c = cfg();
+    const startMonth = document.getElementById('sStartMonth').value || c.startMonth || currentMonthValue();
+    Object.assign(c, {
         ue:parseFloat(document.getElementById('upElec').value)||0,
         uw:parseFloat(document.getElementById('upWater').value)||0,
         ug:parseFloat(document.getElementById('upGas').value)||0,
@@ -717,8 +762,11 @@ function saveSettings(){
         is110:parseFloat(document.getElementById('sis110').value)||0,
         is220:parseFloat(document.getElementById('sis220').value)||0,
         iw:parseFloat(document.getElementById('siw').value)||0,
-        ig:parseFloat(document.getElementById('sig').value)||0
+        ig:parseFloat(document.getElementById('sig').value)||0,
+        startMonth:startMonth
     });
+    set('cfg', c);
+    saveStartForMonth(startMonth, startFromCfg(c));
     alert('設定已儲存');
 }
 function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.startsWith(KEY)) d[k]=localStorage.getItem(k); }); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`Wazi_Backup.json`; a.click(); }
