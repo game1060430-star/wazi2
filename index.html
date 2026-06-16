@@ -64,6 +64,8 @@
         .misc-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
         .report-card { overflow: visible; }
         .report-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 4px 0 10px; }
+        .save-toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 20px); min-width: 220px; max-width: calc(100% - 32px); padding: 13px 16px; border-radius: 10px; background: var(--primary-dark); color: white; text-align: center; font-weight: bold; box-shadow: 0 8px 24px rgba(38,50,45,0.22); opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 999; }
+        .save-toast.show { opacity: 1; transform: translate(-50%, 0); }
         @media (max-width: 640px) {
             body { padding: 8px; font-size: 15px; }
             .container { max-width: 100%; }
@@ -233,6 +235,7 @@
         </div>
     </div>
 </div>
+<div id="saveToast" class="save-toast">已儲存</div>
 
 <script>
 const KEY = "wazi_v23_";
@@ -354,6 +357,15 @@ function calcDaily(){
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const result = (cashRaw - c.petty) + val('pOnline') + val('pScan');
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(result).toLocaleString()}`;
+}
+
+function showSaveToast(message){
+    const toast = document.getElementById('saveToast');
+    if(!toast) return;
+    toast.innerText = message;
+    toast.classList.add('show');
+    clearTimeout(showSaveToast.timer);
+    showSaveToast.timer = setTimeout(() => toast.classList.remove('show'), 1800);
 }
 
 function getVendorEntry(entryKey, entryValue, vendors){
@@ -547,7 +559,7 @@ function saveDaily(){
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
-    alert('✅ 儲存成功');
+    showSaveToast('✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
