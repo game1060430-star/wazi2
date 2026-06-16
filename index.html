@@ -244,6 +244,7 @@ const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
+let isLoadingDaily = false;
 const num = (v)=>parseFloat(v) || 0;
 const money = (v)=>`$${Math.round(num(v)).toLocaleString()}`;
 const unitMoney = (v)=>`$${num(v).toLocaleString(undefined, {maximumFractionDigits: 4})}`;
@@ -357,6 +358,7 @@ function calcDaily(){
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const result = (cashRaw - c.petty) + val('pOnline') + val('pScan');
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(result).toLocaleString()}`;
+    scheduleDailyAutosave();
 }
 
 function showSaveToast(message){
@@ -366,6 +368,12 @@ function showSaveToast(message){
     toast.classList.add('show');
     clearTimeout(showSaveToast.timer);
     showSaveToast.timer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+function scheduleDailyAutosave(){
+    if(isLoadingDaily) return;
+    clearTimeout(scheduleDailyAutosave.timer);
+    scheduleDailyAutosave.timer = setTimeout(() => saveDaily(true), 700);
 }
 
 function getVendorEntry(entryKey, entryValue, vendors){
@@ -521,21 +529,24 @@ function exportReportPdf(){
 }
 
 function loadDaily(){
+    isLoadingDaily = true;
+    clearTimeout(scheduleDailyAutosave.timer);
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
     dailyMisc = d.misc || [];
     let html = ""; const vendors = get('vendors');
     vendors.forEach(v => {
-        if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" inputmode="numeric" pattern="[0-9]*" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`; }
+        if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" inputmode="numeric" pattern="[0-9]*" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}" oninput="scheduleDailyAutosave()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`; }
         else {
             const itemInputs = (v.items||[]).map(it => {
                 const key = v.name+'_'+it.n+'_'+it.p;
-                return `<div><label>${it.n}</label><input type="number" inputmode="numeric" pattern="[0-9]*" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`;
+                return `<div><label>${it.n}</label><input type="number" inputmode="numeric" pattern="[0-9]*" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}" oninput="scheduleDailyAutosave()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`;
             }).join('');
             html += `<div class="v-row"><b>${v.name}</b><div class="vendor-item-grid">${itemInputs}</div></div>`;
         }
     });
     document.getElementById('vDailyArea').innerHTML = html; renderMiscExpenses(); setupNumericKeyboards(); calcDaily();
+    isLoadingDaily = false;
 }
 function renderMiscExpenses(){
     document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>`<div class="misc-row"><span>${item.name}</span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`).join('');
@@ -549,17 +560,19 @@ function addMiscExpense(){
     document.getElementById('miscName').value = '';
     document.getElementById('miscAmount').value = '';
     renderMiscExpenses();
+    saveDaily(true);
 }
 function deleteMiscExpense(index){
     dailyMisc.splice(index, 1);
     renderMiscExpenses();
+    saveDaily(true);
 }
-function saveDaily(){
+function saveDaily(isAuto = false){
     const date = document.getElementById('logDate').value, vs = {};
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
-    showSaveToast('✅ 今日紀錄已儲存');
+    showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
