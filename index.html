@@ -657,10 +657,13 @@ function saveMonthlyOnly(){
 }
 function showLiveCalc(type){
     const c = cfg(), cur = parseFloat(document.getElementById('m'+type).value) || 0;
+    const month = document.getElementById('mMonth').value;
+    const savedMonth = getMonthlyData(month);
+    const base = getMonthlyCalcBase(savedMonth, c);
     const startKey = {e110:'i110',e220:'i220',se110:'is110',se220:'is220',w:'iw',g:'ig'}[type];
-    const diff = Math.max(0, cur - (c[startKey]||0));
-    const amt = diff * (type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug));
-    const rate = type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug);
+    const diff = Math.max(0, cur - (base.start[startKey]||0));
+    const rate = type.includes('e') ? base.rates.ue : (type==='w' ? base.rates.uw : base.rates.ug);
+    const amt = diff * rate;
     if(document.getElementById('hint_'+type)) document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} × ${unitMoney(rate)} | 預估: $${Math.round(amt)}`;
     scheduleMonthlyAutosave();
 }
