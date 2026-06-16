@@ -245,6 +245,9 @@ const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
 let isLoadingDaily = false;
+let isLoadingMonthly = false;
+let monthlyStartReminderShown = {};
+const skippedReportMonths = [1, 2, 7, 8];
 const num = (v)=>parseFloat(v) || 0;
 const money = (v)=>`$${Math.round(num(v)).toLocaleString()}`;
 const unitMoney = (v)=>`$${num(v).toLocaleString(undefined, {maximumFractionDigits: 4})}`;
@@ -296,6 +299,45 @@ function nextMonthValue(month){
     const [year, monthNum] = month.split('-').map(Number);
     const next = new Date(year, monthNum, 1);
     return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function previousMonthValue(month){
+    const [year, monthNum] = month.split('-').map(Number);
+    const prev = new Date(year, monthNum - 2, 1);
+    return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function isSkippedReportMonth(month){
+    return skippedReportMonths.includes(Number(month.slice(5, 7)));
+}
+
+function findPreviousSavedReportMonth(month){
+    let cursor = previousMonthValue(month);
+    for(let i=0; i<24; i++){
+        if(!isSkippedReportMonth(cursor) && localStorage.getItem(KEY+'m_'+cursor)) return cursor;
+        cursor = previousMonthValue(cursor);
+    }
+    return null;
+}
+
+function checkMonthlyStartReminder(month){
+    if(!month || isSkippedReportMonth(month) || monthlyStartReminderShown[month]) return;
+    const prevMonth = findPreviousSavedReportMonth(month);
+    if(!prevMonth) return;
+    const prev = getMonthlyData(prevMonth);
+    const c = cfg();
+    const checks = [
+        ['總表110', c.i110, prev.e110],
+        ['總表220', c.i220, prev.e220],
+        ['舒芙蕾分表110', c.is110, prev.se110],
+        ['舒芙蕾分表220', c.is220, prev.se220],
+        ['水費', c.iw, prev.w],
+        ['瓦斯', c.ig, prev.g]
+    ].filter(row => num(row[1]) !== num(row[2]));
+    if(checks.length === 0) return;
+    monthlyStartReminderShown[month] = true;
+    const detail = checks.map(row => `${row[0]}：目前起始 ${num(row[1])}，${prevMonth} 結束 ${num(row[2])}`).join('\n');
+    alert(`提醒：目前起始度數看起來還沒有接上上一個有報表的月份（${prevMonth}）。\n\n${detail}\n\n如果中間是 1、2、7、8 月寒暑假沒營業，系統已自動跳過那些月份。`);
 }
 
 function getFixedExpenseRows(m, c){
@@ -374,6 +416,20 @@ function scheduleDailyAutosave(){
     if(isLoadingDaily) return;
     clearTimeout(scheduleDailyAutosave.timer);
     scheduleDailyAutosave.timer = setTimeout(() => saveDaily(true), 700);
+}
+
+function scheduleMonthlyAutosave(){
+    if(isLoadingMonthly) return;
+    clearTimeout(scheduleMonthlyAutosave.timer);
+    scheduleMonthlyAutosave.timer = setTimeout(() => saveMonthlyDraft(true), 900);
+}
+
+function bindMonthlyAutosave(){
+    document.querySelectorAll('#monthly input[type="number"]').forEach(input => {
+        if(input.dataset.monthlyAutosaveBound) return;
+        input.dataset.monthlyAutosaveBound = '1';
+        input.addEventListener('input', scheduleMonthlyAutosave);
+    });
 }
 
 function getVendorEntry(entryKey, entryValue, vendors){
@@ -575,7 +631,10 @@ function saveDaily(isAuto = false){
     showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
+    isLoadingMonthly = true;
+    clearTimeout(scheduleMonthlyAutosave.timer);
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
+    const month = document.getElementById('mMonth').value;
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
     const c = cfg();
@@ -588,13 +647,16 @@ function loadMonthly(){
     document.getElementById('msouffleRevenue').value = souffle.revenue || '';
     ['e110','e220','se110','se220','w','g'].forEach(showLiveCalc);
     setupNumericKeyboards();
+    bindMonthlyAutosave();
+    isLoadingMonthly = false;
+    checkMonthlyStartReminder(month);
 }
-function saveMonthlyOnly(){
+function collectMonthlyData(){
     const m = document.getElementById('mMonth').value, s={}, b={};
     const c = cfg();
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
-    set('m_'+m, {
+    return {
         staff:s,
         bonus:b,
         souffle:{
@@ -612,9 +674,19 @@ function saveMonthlyOnly(){
         pub:parseFloat(document.getElementById('mpub').value)||0,
         rent:parseFloat(document.getElementById('mrent').value)||0,
         taxb:parseFloat(document.getElementById('mtaxb').value)||0
-    });
+    };
+}
+function saveMonthlyDraft(isAuto = false){
+    const m = document.getElementById('mMonth').value;
+    set('m_'+m, collectMonthlyData());
+    showSaveToast(isAuto ? '月結算已暫存' : '✅ 月結算已暫存');
+}
+function saveMonthlyOnly(){
+    const m = document.getElementById('mMonth').value;
+    saveMonthlyDraft(false);
     document.getElementById('rMonth').value = m;
-    alert('✅ 數據已儲存'); switchTab('report'); genFullReport();
+    showSaveToast('✅ 本月報表數據已儲存');
+    switchTab('report'); genFullReport();
 }
 function showLiveCalc(type){
     const c = cfg(), cur = parseFloat(document.getElementById('m'+type).value) || 0;
@@ -623,6 +695,7 @@ function showLiveCalc(type){
     const amt = diff * (type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug));
     const rate = type.includes('e') ? c.ue : (type==='w' ? c.uw : c.ug);
     if(document.getElementById('hint_'+type)) document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} × ${unitMoney(rate)} | 預估: $${Math.round(amt)}`;
+    scheduleMonthlyAutosave();
 }
 function manualReplaceStartDegrees(){
     const currentMonth = document.getElementById('mMonth').value;
