@@ -246,8 +246,6 @@ const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KE
 let dailyMisc = [];
 let isLoadingDaily = false;
 let isLoadingMonthly = false;
-let monthlyStartReminderShown = {};
-const skippedReportMonths = [1, 2, 7, 8];
 const num = (v)=>parseFloat(v) || 0;
 const money = (v)=>`$${Math.round(num(v)).toLocaleString()}`;
 const unitMoney = (v)=>`$${num(v).toLocaleString(undefined, {maximumFractionDigits: 4})}`;
@@ -299,45 +297,6 @@ function nextMonthValue(month){
     const [year, monthNum] = month.split('-').map(Number);
     const next = new Date(year, monthNum, 1);
     return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function previousMonthValue(month){
-    const [year, monthNum] = month.split('-').map(Number);
-    const prev = new Date(year, monthNum - 2, 1);
-    return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function isSkippedReportMonth(month){
-    return skippedReportMonths.includes(Number(month.slice(5, 7)));
-}
-
-function findPreviousSavedReportMonth(month){
-    let cursor = previousMonthValue(month);
-    for(let i=0; i<24; i++){
-        if(!isSkippedReportMonth(cursor) && localStorage.getItem(KEY+'m_'+cursor)) return cursor;
-        cursor = previousMonthValue(cursor);
-    }
-    return null;
-}
-
-function checkMonthlyStartReminder(month){
-    if(!month || isSkippedReportMonth(month) || monthlyStartReminderShown[month]) return;
-    const prevMonth = findPreviousSavedReportMonth(month);
-    if(!prevMonth) return;
-    const prev = getMonthlyData(prevMonth);
-    const c = cfg();
-    const checks = [
-        ['總表110', c.i110, prev.e110],
-        ['總表220', c.i220, prev.e220],
-        ['舒芙蕾分表110', c.is110, prev.se110],
-        ['舒芙蕾分表220', c.is220, prev.se220],
-        ['水費', c.iw, prev.w],
-        ['瓦斯', c.ig, prev.g]
-    ].filter(row => num(row[1]) !== num(row[2]));
-    if(checks.length === 0) return;
-    monthlyStartReminderShown[month] = true;
-    const detail = checks.map(row => `${row[0]}：目前起始 ${num(row[1])}，${prevMonth} 結束 ${num(row[2])}`).join('\n');
-    alert(`提醒：目前起始度數看起來還沒有接上上一個有報表的月份（${prevMonth}）。\n\n${detail}\n\n如果中間是 1、2、7、8 月寒暑假沒營業，系統已自動跳過那些月份。`);
 }
 
 function getFixedExpenseRows(m, c){
@@ -649,7 +608,6 @@ function loadMonthly(){
     setupNumericKeyboards();
     bindMonthlyAutosave();
     isLoadingMonthly = false;
-    checkMonthlyStartReminder(month);
 }
 function collectMonthlyData(){
     const m = document.getElementById('mMonth').value, s={}, b={};
