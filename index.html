@@ -420,15 +420,15 @@ function getFixedExpenseRows(m, c){
     const gasUse = Math.max(0, num(m.g) - num(start.ig));
     const baseRows = [
         {label:'房租', detail:'月租金', amount:num(m.rent)},
-        {label:'公攤', detail:`輸入 ${money(m.pub)} × 0.75`, amount:num(m.pub) * 0.75},
+        {label:'公攤', detail:`設定基數 ${money(c.publicBase)}，本月採用 ${money(m.pub)} × 0.75`, amount:num(m.pub) * 0.75},
         {label:'電費', detail:`總110 ${num(start.i110)}→${num(m.e110)}，總220 ${num(start.i220)}→${num(m.e220)}，分表扣 ${se110Use.toFixed(1)}+${se220Use.toFixed(1)}，實用 ${eNet.toFixed(1)} 度 × ${unitMoney(rates.ue)}`, amount:eNet * num(rates.ue)},
         {label:'水費', detail:`${num(start.iw)}→${num(m.w)}，用量 ${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterUse * num(rates.uw)},
         {label:'瓦斯', detail:`${num(start.ig)}→${num(m.g)}，用量 ${gasUse.toFixed(1)} 度 × ${unitMoney(rates.ug)}`, amount:gasUse * num(rates.ug)},
-        {label:'稅金', detail:`稅金基數 ${money(m.taxb)} × 5%`, amount:num(m.taxb) * 0.05}
+        {label:'稅金', detail:`設定基數 ${money(c.taxBase)}，本月採用 ${money(m.taxb)} × 5%`, amount:num(m.taxb) * 0.05}
     ];
     const customRows = getEnabledFixedExpenses().map(item => ({
         label:item.name,
-        detail:'自訂固定支出',
+        detail:`設定金額 ${money(item.amount)}，本月採用 ${money(m.fixed?.[item.id] ?? item.amount)}`,
         amount:num(m.fixed?.[item.id] ?? item.amount)
     }));
     return baseRows.concat(customRows);
@@ -1054,7 +1054,16 @@ function saveSettings(){
     applyPaymentVisibility();
     calcDaily();
     loadMonthly();
+    syncMonthlyBasesFromSettings(c);
     if(document.getElementById('rMonth')?.value) genFullReport();
+}
+
+function syncMonthlyBasesFromSettings(c = cfg()){
+    const month = document.getElementById('mMonth')?.value;
+    if(!month) return;
+    if(document.getElementById('mpub')) document.getElementById('mpub').value = c.publicBase || '';
+    if(document.getElementById('mtaxb')) document.getElementById('mtaxb').value = c.taxBase || '';
+    if(document.getElementById('mMonth')) saveMonthlyData(true);
 }
 function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.startsWith(KEY)) d[k]=localStorage.getItem(k); }); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`Wazi_Backup.json`; a.click(); }
 function importData(event) {
