@@ -216,6 +216,7 @@
                 <div class="form-group"><label>瓦斯單價</label><input type="number" id="upGas"></div>
                 <div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div>
                 <div class="form-group"><label>公攤費基數</label><input type="number" id="sPublicBase"></div>
+                <div class="form-group"><label>公攤費比例</label><input type="number" inputmode="decimal" id="sPublicRate"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" id="sTaxBase"></div>
                 <label class="check-row"><input type="checkbox" id="sShowOnlinePay">顯示網路收入</label>
                 <label class="check-row"><input type="checkbox" id="sShowScanPay">顯示掃碼支付</label>
@@ -286,7 +287,7 @@
 const KEY = "wazi_v23_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
-const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, taxBase:0, hasSublease:false, subleaseName:'分租', subleaseRent:15000, showOnlinePay:true, showScanPay:true};
+const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, publicRate:0.75, taxBase:0, hasSublease:false, subleaseName:'分租', subleaseRent:15000, showOnlinePay:true, showScanPay:true};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
 let editingMiscIndex = null;
@@ -420,7 +421,7 @@ function getFixedExpenseRows(m, c){
     const gasUse = Math.max(0, num(m.g) - num(start.ig));
     const baseRows = [
         {label:'房租', detail:'月租金', amount:num(m.rent)},
-        {label:'公攤', detail:`設定基數 ${money(c.publicBase)}，本月採用 ${money(m.pub)} × 0.75`, amount:num(m.pub) * 0.75},
+        {label:'公攤', detail:`設定基數 ${money(c.publicBase)}，本月採用 ${money(m.pub)} × ${num(c.publicRate)}`, amount:num(m.pub) * num(c.publicRate)},
         {label:'電費', detail:`總110 ${num(start.i110)}→${num(m.e110)}，總220 ${num(start.i220)}→${num(m.e220)}，分表扣 ${se110Use.toFixed(1)}+${se220Use.toFixed(1)}，實用 ${eNet.toFixed(1)} 度 × ${unitMoney(rates.ue)}`, amount:eNet * num(rates.ue)},
         {label:'水費', detail:`${num(start.iw)}→${num(m.w)}，用量 ${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterUse * num(rates.uw)},
         {label:'瓦斯', detail:`${num(start.ig)}→${num(m.g)}，用量 ${gasUse.toFixed(1)} 度 × ${unitMoney(rates.ug)}`, amount:gasUse * num(rates.ug)},
@@ -442,7 +443,7 @@ function getSouffleExpenseRows(m, c){
     const subElectricUse = se110Use + se220Use;
     const waterUse = Math.max(0, num(m.w) - num(start.iw));
     const waterAmount = waterUse * num(rates.uw);
-    const pubAmount = num(m.pub) * 0.75;
+    const pubAmount = num(m.pub) * num(c.publicRate);
     const legacySouffle = m.souffle || {};
     const souffle = {
         rent: legacySouffle.rent ?? c.subleaseRent ?? c.souffleRent ?? 15000,
@@ -452,7 +453,7 @@ function getSouffleExpenseRows(m, c){
         {label:'租金', detail:'本月舒芙蕾租金', amount:num(souffle.rent)},
         {label:'電費', detail:`舒芙蕾分表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × 店裡電單價 ${unitMoney(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
         {label:'水費', detail:`同主報表水費：${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterAmount},
-        {label:'公攤費', detail:`同主報表公攤：${money(m.pub)} × 0.75`, amount:pubAmount},
+        {label:'公攤費', detail:`同主報表公攤：${money(m.pub)} × ${num(c.publicRate)}`, amount:pubAmount},
         {label:'5%營業額', detail:`${money(souffle.revenue)} × 5%`, amount:num(souffle.revenue) * 0.05}
     ];
 }
@@ -1011,7 +1012,7 @@ function manualUpdateVendorTotal(){
     data.vs[vn] = parseFloat(a); set('d_'+date, data); calcRecon(); alert('數據已修正');
 }
 function renderSettings(){
-    const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicBase:'publicBase', sTaxBase:'taxBase', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
+    const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicBase:'publicBase', sPublicRate:'publicRate', sTaxBase:'taxBase', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
     if(document.getElementById('sStartMonth')) document.getElementById('sStartMonth').value = c.startMonth || document.getElementById('mMonth')?.value || currentMonthValue();
     if(document.getElementById('sShowOnlinePay')) document.getElementById('sShowOnlinePay').checked = c.showOnlinePay !== false;
@@ -1034,6 +1035,7 @@ function saveSettings(){
         ug:parseFloat(document.getElementById('upGas').value)||0,
         petty:parseFloat(document.getElementById('sPetty').value)||0,
         publicBase:parseFloat(document.getElementById('sPublicBase').value)||0,
+        publicRate:parseFloat(document.getElementById('sPublicRate').value)||0,
         taxBase:parseFloat(document.getElementById('sTaxBase').value)||0,
         showOnlinePay:!!document.getElementById('sShowOnlinePay')?.checked,
         showScanPay:!!document.getElementById('sShowScanPay')?.checked,
