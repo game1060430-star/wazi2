@@ -132,6 +132,8 @@
             <div class="grid">
                 <div class="form-group"><label>品名</label><input type="text" id="miscName" placeholder="例如：臨時用品"></div>
                 <div class="form-group"><label>金額</label><input type="number" inputmode="numeric" pattern="[0-9]*" id="miscAmount" placeholder="金額"></div>
+                <label class="check-row"><input type="checkbox" id="miscUnpaid" onchange="toggleMiscPayer()">未支付 / 代墊</label>
+                <div class="form-group" id="miscPayerWrap" style="display:none;"><label>代墊人</label><select id="miscPayer"></select></div>
             </div>
             <button class="btn btn-primary" onclick="addMiscExpense()">+ 新增雜支</button>
             <div id="miscList" class="misc-list"></div>
@@ -175,6 +177,8 @@
             </div>
             <h4 class="section-title">自訂固定支出</h4>
             <div id="mFixedArea" class="grid"></div>
+            <h4 class="section-title">未支付雜支結算</h4>
+            <div id="mUnpaidMiscArea"></div>
             <h4 class="section-title">👥 薪資獎金</h4>
             <div id="mStaffArea"></div>
             <div id="subleaseMonthlySection">
@@ -358,6 +362,27 @@ function getEnabledFixedExpenses(){
     return getFixedExpenses().filter(item => item.enabled !== false);
 }
 
+function getMiscPayers(){
+    const names = ['老闆', '店長'].concat(get('staff').map(s => s.n));
+    return [...new Set(names.filter(Boolean))];
+}
+
+function isMiscSettled(item){
+    return !item.unpaid || item.settled;
+}
+
+function getUnpaidMiscEntries(month){
+    const entries = [];
+    for(let i=1; i<=31; i++){
+        const date = month + '-' + String(i).padStart(2,'0');
+        const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
+        (d?.misc || []).forEach((item, index) => {
+            if(item.unpaid && !item.settled) entries.push({date, index, item});
+        });
+    }
+    return entries;
+}
+
 function lockMonthlyRatesForPdf(month){
     const c = cfg();
     const m = getMonthlyData(month);
@@ -503,8 +528,10 @@ function genFullReport(){
             }
             (d.misc||[]).forEach(item => {
                 const amt = parseFloat(item.amount)||0;
+                if(!isMiscSettled(item)) return;
                 tMisc += amt;
-                miscRows += `<tr><td colspan="4" style="text-align:left;">${date.slice(8)}日 ${item.name}</td><td>$${Math.round(amt).toLocaleString()}</td></tr>`;
+                const payerNote = item.payer ? ` / 代墊：${item.payer}` : '';
+                miscRows += `<tr><td colspan="4" style="text-align:left;">${date.slice(8)}日 ${item.name}${payerNote}</td><td>$${Math.round(amt).toLocaleString()}</td></tr>`;
             });
         }
     }
@@ -652,20 +679,38 @@ function loadDaily(){
             html += `<div class="v-row"><b>${v.name}</b><div class="vendor-item-grid">${itemInputs}</div></div>`;
         }
     });
-    document.getElementById('vDailyArea').innerHTML = html; renderMiscExpenses(); setupNumericKeyboards(); calcDaily();
+    document.getElementById('vDailyArea').innerHTML = html; renderMiscPayers(); renderMiscExpenses(); setupNumericKeyboards(); calcDaily();
     isLoadingDaily = false;
 }
+function renderMiscPayers(){
+    const select = document.getElementById('miscPayer');
+    if(!select) return;
+    select.innerHTML = getMiscPayers().map(name => `<option value="${name}">${name}</option>`).join('');
+    toggleMiscPayer();
+}
+function toggleMiscPayer(){
+    const unpaid = !!document.getElementById('miscUnpaid')?.checked;
+    const wrap = document.getElementById('miscPayerWrap');
+    if(wrap) wrap.style.display = unpaid ? 'block' : 'none';
+}
 function renderMiscExpenses(){
-    document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>`<div class="misc-row"><span>${item.name}</span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`).join('');
+    document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>{
+        const status = item.unpaid ? (item.settled ? `已結算 / ${item.payer || '未指定'}` : `未支付 / ${item.payer || '未指定'}`) : '已支付';
+        return `<div class="misc-row"><span>${item.name}<br><small style="color:#728078;">${status}</small></span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`;
+    }).join('');
 }
 function addMiscExpense(){
     const name = document.getElementById('miscName').value.trim();
     const amount = parseFloat(document.getElementById('miscAmount').value) || 0;
+    const unpaid = !!document.getElementById('miscUnpaid')?.checked;
+    const payer = unpaid ? document.getElementById('miscPayer').value : '';
     if(!name){ alert('請輸入雜支品名'); return; }
     if(amount <= 0){ alert('請輸入雜支金額'); return; }
-    dailyMisc.push({name, amount});
+    dailyMisc.push({name, amount, unpaid, payer, settled:false});
     document.getElementById('miscName').value = '';
     document.getElementById('miscAmount').value = '';
+    if(document.getElementById('miscUnpaid')) document.getElementById('miscUnpaid').checked = false;
+    toggleMiscPayer();
     renderMiscExpenses();
     saveDaily(true);
 }
@@ -692,6 +737,7 @@ function loadMonthly(){
     if(!Object.prototype.hasOwnProperty.call(m, 'pub') && c.publicBase) document.getElementById('mpub').value = c.publicBase;
     if(!Object.prototype.hasOwnProperty.call(m, 'taxb') && c.taxBase) document.getElementById('mtaxb').value = c.taxBase;
     renderMonthlyFixedExpenses(m);
+    renderUnpaidMiscSettlement(month);
     toggleSubleaseMonthly(c);
     const legacySouffle = m.souffle || {};
     const souffle = {
@@ -704,6 +750,61 @@ function loadMonthly(){
     setupNumericKeyboards();
     bindMonthlyAutosave();
     isLoadingMonthly = false;
+}
+
+function renderUnpaidMiscSettlement(month){
+    const box = document.getElementById('mUnpaidMiscArea');
+    if(!box) return;
+    const entries = getUnpaidMiscEntries(month);
+    if(entries.length === 0){
+        box.innerHTML = '<div class="report-note">本月沒有未支付雜支</div>';
+        return;
+    }
+    const payerTotals = {};
+    entries.forEach(({item}) => {
+        const payer = item.payer || '未指定';
+        payerTotals[payer] = (payerTotals[payer] || 0) + num(item.amount);
+    });
+    const summary = Object.keys(payerTotals).map(payer => `<div class="list-row"><span>${payer}</span><b>${money(payerTotals[payer])}</b></div>`).join('');
+    const rows = entries.map(({date, index, item}) => `
+        <div class="list-row">
+            <span>${date.slice(8)}日 ${item.name}<br><small style="color:#728078;">${item.payer || '未指定'}</small></span>
+            <b>${money(item.amount)}</b>
+            <button class="btn btn-success" onclick="settleUnpaidMisc('${date}', ${index})">結算</button>
+        </div>`).join('');
+    box.innerHTML = `
+        <div class="card" style="box-shadow:none;">
+            <b>代墊統計</b>
+            ${summary}
+        </div>
+        ${rows}
+        <button class="btn btn-success" onclick="settleAllUnpaidMisc('${month}')">全部結算</button>`;
+}
+
+function settleUnpaidMisc(date, index){
+    const data = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {misc:[]};
+    if(!data.misc?.[index]) return;
+    data.misc[index].settled = true;
+    data.misc[index].settledAt = new Date().toISOString();
+    set('d_'+date, data);
+    const month = document.getElementById('mMonth').value;
+    renderUnpaidMiscSettlement(month);
+    refreshReportIfSameMonth(month);
+    showSaveToast('未支付雜支已結算');
+}
+
+function settleAllUnpaidMisc(month){
+    getUnpaidMiscEntries(month).forEach(({date, index}) => {
+        const data = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {misc:[]};
+        if(data.misc?.[index]){
+            data.misc[index].settled = true;
+            data.misc[index].settledAt = new Date().toISOString();
+            set('d_'+date, data);
+        }
+    });
+    renderUnpaidMiscSettlement(month);
+    refreshReportIfSameMonth(month);
+    showSaveToast('本月未支付雜支已全部結算');
 }
 
 function renderMonthlyFixedExpenses(m){
