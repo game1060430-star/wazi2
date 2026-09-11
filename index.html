@@ -206,8 +206,6 @@
                 <div class="form-group"><label>起始度數月份</label><input type="month" id="sStartMonth"></div>
                 <div class="form-group"><label>總110</label><input type="number" id="si110"></div>
                 <div class="form-group"><label>總220</label><input type="number" id="si220"></div>
-                <div class="form-group"><label>分110</label><input type="number" id="sis110"></div>
-                <div class="form-group"><label>分220</label><input type="number" id="sis220"></div>
                 <div class="form-group"><label>水始</label><input type="number" id="siw"></div>
                 <div class="form-group"><label>瓦斯始</label><input type="number" id="sig"></div>
             </div>
@@ -219,6 +217,8 @@
             <div id="subleaseSettingsFields" class="grid">
                 <div class="form-group"><label>分租名稱</label><input type="text" id="sSubleaseName" placeholder="例如：舒芙蕾"></div>
                 <div class="form-group"><label>分租租金</label><input type="number" inputmode="decimal" id="sSubleaseRent"></div>
+                <div class="form-group"><label>分租分表110起始</label><input type="number" inputmode="decimal" id="sis110"></div>
+                <div class="form-group"><label>分租分表220起始</label><input type="number" inputmode="decimal" id="sis220"></div>
             </div>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存分租設定</button>
         </div>
@@ -349,8 +349,13 @@ function getFixedExpenses(){
     return get('fixedExpenses').map((item, index) => ({
         id: item.id || `legacy_${index}`,
         name: item.name || `固定支出${index + 1}`,
-        amount: num(item.amount)
+        amount: num(item.amount),
+        enabled: item.enabled !== false
     }));
+}
+
+function getEnabledFixedExpenses(){
+    return getFixedExpenses().filter(item => item.enabled !== false);
 }
 
 function lockMonthlyRatesForPdf(month){
@@ -380,7 +385,7 @@ function getFixedExpenseRows(m, c){
         {label:'瓦斯', detail:`${num(start.ig)}→${num(m.g)}，用量 ${gasUse.toFixed(1)} 度 × ${unitMoney(rates.ug)}`, amount:gasUse * num(rates.ug)},
         {label:'稅金', detail:`稅金基數 ${money(m.taxb)} × 5%`, amount:num(m.taxb) * 0.05}
     ];
-    const customRows = getFixedExpenses().map(item => ({
+    const customRows = getEnabledFixedExpenses().map(item => ({
         label:item.name,
         detail:'自訂固定支出',
         amount:num(m.fixed?.[item.id] ?? item.amount)
@@ -702,7 +707,7 @@ function loadMonthly(){
 }
 
 function renderMonthlyFixedExpenses(m){
-    const items = getFixedExpenses();
+    const items = getEnabledFixedExpenses();
     document.getElementById('mFixedArea').innerHTML = items.map(item => `
         <div class="form-group">
             <label>${item.name}</label>
@@ -878,19 +883,28 @@ function clearAllData(){ if(confirm('⚠️ 確定清空？')){ localStorage.cle
 function renderFixedExpenseSettings(){
     const box = document.getElementById('listFixedExpenses');
     if(!box) return;
-    box.innerHTML = getFixedExpenses().map((item,i)=>`<div class="list-row"><span>${item.name} (${money(item.amount)})</span><button class="btn btn-danger" onclick="delFixedExpense(${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增固定支出</div>';
+    box.innerHTML = getFixedExpenses().map((item,i)=>`<div class="list-row"><label class="check-row" style="flex:1; min-height:0;"><input type="checkbox" ${item.enabled ? 'checked' : ''} onchange="toggleFixedExpense(${i}, this.checked)"> <span>${item.name} (${money(item.amount)})</span></label><button class="btn btn-danger" onclick="delFixedExpense(${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增固定支出</div>';
 }
 function addFixedExpense(){
     const name = document.getElementById('newFixedName').value.trim();
     const amount = parseFloat(document.getElementById('newFixedAmount').value) || 0;
     if(!name){ alert('請輸入固定支出名稱'); return; }
     const items = get('fixedExpenses');
-    items.push({id:'fx_'+Date.now(), name:name, amount:amount});
+    items.push({id:'fx_'+Date.now(), name:name, amount:amount, enabled:true});
     set('fixedExpenses', items);
     document.getElementById('newFixedName').value = '';
     document.getElementById('newFixedAmount').value = '';
     renderFixedExpenseSettings();
     loadMonthly();
+}
+function toggleFixedExpense(i, enabled){
+    const items = get('fixedExpenses');
+    if(!items[i]) return;
+    items[i].enabled = enabled;
+    set('fixedExpenses', items);
+    renderFixedExpenseSettings();
+    loadMonthly();
+    if(document.getElementById('rMonth')?.value) genFullReport();
 }
 function delFixedExpense(i){
     const items = get('fixedExpenses');
