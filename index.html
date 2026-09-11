@@ -377,7 +377,7 @@ function getEnabledFixedExpenses(){
 }
 
 function getMiscPayers(){
-    const names = ['老闆', '店長'].concat(get('staff').map(s => s.n));
+    const names = get('staff').map(s => s.n).concat('其他');
     return [...new Set(names.filter(Boolean))];
 }
 
@@ -749,9 +749,13 @@ function addMiscExpense(){
     const name = document.getElementById('miscName').value.trim();
     const amount = parseFloat(document.getElementById('miscAmount').value) || 0;
     const unpaid = !!document.getElementById('miscUnpaid')?.checked;
-    const payer = unpaid ? document.getElementById('miscPayer').value : '';
+    let payer = unpaid ? document.getElementById('miscPayer').value : '';
     if(!name){ alert('請輸入雜支品名'); return; }
     if(amount <= 0){ alert('請輸入雜支金額'); return; }
+    if(unpaid && payer === '其他'){
+        payer = (prompt('請輸入代墊人姓名') || '').trim();
+        if(!payer) return;
+    }
     dailyMisc.push({name, amount, unpaid, payer, settled:false});
     document.getElementById('miscName').value = '';
     document.getElementById('miscAmount').value = '';
