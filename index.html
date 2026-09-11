@@ -285,7 +285,7 @@
 const KEY = "wazi_v23_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
-const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, taxBase:0, hasSublease:true, subleaseName:'舒芙蕾', subleaseRent:15000, showOnlinePay:true, showScanPay:true};
+const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, taxBase:0, hasSublease:false, subleaseName:'分租', subleaseRent:15000, showOnlinePay:true, showScanPay:true};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
 let isLoadingDaily = false;
