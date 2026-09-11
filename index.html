@@ -177,6 +177,7 @@
 
     <div id="monthly" class="tab-content">
         <div class="date-picker-wrap"><input type="month" id="mMonth" onchange="loadMonthly()"></div>
+        <div id="mStartSummary" class="card report-note"></div>
         <div class="card">
             <h4 class="section-title">抄表結束度數</h4>
             <div class="grid">
@@ -363,6 +364,15 @@ function getMonthlyCalcBase(m, c, month = ''){
         start: getStartForMonth(month, c, m),
         rates: m.pdfLocked && m.rates ? m.rates : {ue:c.ue, uw:c.uw, ug:c.ug}
     };
+}
+
+function renderMonthlyStartSummary(month, m, c){
+    const box = document.getElementById('mStartSummary');
+    if(!box) return;
+    const base = getMonthlyCalcBase(m, c, month);
+    const start = base.start || {};
+    const subleaseMeters = c.hasSublease ? `　分租110: ${num(start.is110)}　分租220: ${num(start.is220)}` : '';
+    box.innerHTML = `<b>${month || '本月'} 起始度數</b><br>總110: ${num(start.i110)}　總220: ${num(start.i220)}　水: ${num(start.iw)}　瓦斯: ${num(start.ig)}${subleaseMeters}`;
 }
 
 function getFixedExpenses(){
@@ -822,6 +832,7 @@ function loadMonthly(){
     const month = document.getElementById('mMonth').value;
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+month))||{staff:{}, bonus:{}};
     const c = cfg();
+    renderMonthlyStartSummary(month, getMonthlyData(month), c);
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k] ?? '');
     renderMonthlyFixedExpenses(m);
@@ -971,15 +982,25 @@ function saveMonthlyOnly(){
     switchTab('report'); genFullReport();
 }
 function showLiveCalc(type){
-    const c = cfg(), cur = parseFloat(document.getElementById('m'+type).value) || 0;
+    const c = cfg();
+    const input = document.getElementById('m'+type);
+    const rawValue = input?.value ?? '';
+    const cur = parseFloat(rawValue) || 0;
     const month = document.getElementById('mMonth').value;
     const savedMonth = getMonthlyData(month);
     const base = getMonthlyCalcBase(savedMonth, c);
     const startKey = {e110:'i110',e220:'i220',se110:'is110',se220:'is220',w:'iw',g:'ig'}[type];
-    const diff = Math.max(0, cur - (base.start[startKey]||0));
+    const start = num(base.start[startKey]);
+    const hint = document.getElementById('hint_'+type);
+    if(rawValue === ''){
+        if(hint) hint.innerText = `起始: ${start}，請輸入結束度數`;
+        scheduleMonthlyAutosave();
+        return;
+    }
+    const diff = Math.max(0, cur - start);
     const rate = type.includes('e') ? base.rates.ue : (type==='w' ? base.rates.uw : base.rates.ug);
     const amt = diff * rate;
-    if(document.getElementById('hint_'+type)) document.getElementById('hint_'+type).innerText = `用量: ${diff.toFixed(1)} × ${unitMoney(rate)} | 預估: $${Math.round(amt)}`;
+    if(hint) hint.innerText = `用量: ${diff.toFixed(1)} × ${unitMoney(rate)} | 預估: $${Math.round(amt)}`;
     scheduleMonthlyAutosave();
 }
 function renderRecon(){
