@@ -34,6 +34,8 @@
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px; text-align: center; background: #fbfcfb; color: var(--text); }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: 2px solid rgba(79,125,95,0.22); border-color: var(--primary); background: #fff; }
         .form-group textarea { min-height: 84px; resize: vertical; text-align: left; }
+        .check-row { display: flex; align-items: center; gap: 8px; min-height: 42px; font-weight: bold; color: var(--text); }
+        .check-row input { width: 20px; height: 20px; accent-color: var(--primary); }
         .list-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }
         .list-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -171,14 +173,18 @@
                 <div class="form-group"><label>公攤額</label><input type="number" inputmode="decimal" id="mpub"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" inputmode="decimal" id="mtaxb"></div>
             </div>
+            <h4 class="section-title">自訂固定支出</h4>
+            <div id="mFixedArea" class="grid"></div>
             <h4 class="section-title">👥 薪資獎金</h4>
             <div id="mStaffArea"></div>
-            <h4 class="section-title">舒芙蕾報表</h4>
+            <div id="subleaseMonthlySection">
+            <h4 class="section-title">分租報表</h4>
             <div class="grid">
-                <div class="form-group"><label>舒芙蕾分表110</label><input type="number" inputmode="decimal" id="mse110" oninput="showLiveCalc('se110')"><div id="hint_se110" class="calc-hint"></div></div>
-                <div class="form-group"><label>舒芙蕾分表220</label><input type="number" inputmode="decimal" id="mse220" oninput="showLiveCalc('se220')"><div id="hint_se220" class="calc-hint"></div></div>
-                <div class="form-group"><label>租金</label><input type="number" inputmode="decimal" id="msouffleRent" value="15000"></div>
+                <div class="form-group"><label>分租電表110</label><input type="number" inputmode="decimal" id="mse110" oninput="showLiveCalc('se110')"><div id="hint_se110" class="calc-hint"></div></div>
+                <div class="form-group"><label>分租電表220</label><input type="number" inputmode="decimal" id="mse220" oninput="showLiveCalc('se220')"><div id="hint_se220" class="calc-hint"></div></div>
+                <div class="form-group"><label>分租租金</label><input type="number" inputmode="decimal" id="msouffleRent" value="15000"></div>
                 <div class="form-group"><label>5%營業額基數</label><input type="number" inputmode="decimal" id="msouffleRevenue"></div>
+            </div>
             </div>
             <button class="btn btn-success" style="margin-top:15px;" onclick="saveMonthlyOnly()">💾 儲存本月報表數據</button>
         </div>
@@ -192,6 +198,8 @@
                 <div class="form-group"><label>水單價</label><input type="number" id="upWater"></div>
                 <div class="form-group"><label>瓦斯單價</label><input type="number" id="upGas"></div>
                 <div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div>
+                <div class="form-group"><label>公攤費基數</label><input type="number" id="sPublicBase"></div>
+                <div class="form-group"><label>稅金基數</label><input type="number" id="sTaxBase"></div>
             </div>
             <h4 class="section-title">當前起始度數</h4>
             <div class="grid">
@@ -204,6 +212,24 @@
                 <div class="form-group"><label>瓦斯始</label><input type="number" id="sig"></div>
             </div>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
+        </div>
+        <div class="card">
+            <h4 class="section-title">分租設定</h4>
+            <label class="check-row"><input type="checkbox" id="sHasSublease" onchange="toggleSubleaseSettings()">有分租</label>
+            <div id="subleaseSettingsFields" class="grid">
+                <div class="form-group"><label>分租名稱</label><input type="text" id="sSubleaseName" placeholder="例如：舒芙蕾"></div>
+                <div class="form-group"><label>分租租金</label><input type="number" inputmode="decimal" id="sSubleaseRent"></div>
+            </div>
+            <button class="btn btn-success" onclick="saveSettings()">💾 儲存分租設定</button>
+        </div>
+        <div class="card">
+            <h4 class="section-title">自訂固定支出</h4>
+            <div id="listFixedExpenses"></div>
+            <div class="grid">
+                <div class="form-group"><label>項目名稱</label><input type="text" id="newFixedName" placeholder="例如：管理費"></div>
+                <div class="form-group"><label>預設金額</label><input type="number" inputmode="decimal" id="newFixedAmount"></div>
+            </div>
+            <button class="btn btn-primary" onclick="addFixedExpense()">+ 新增固定支出</button>
         </div>
         <div class="card">
             <h4 class="section-title">員工</h4>
@@ -241,7 +267,7 @@
 const KEY = "wazi_v23_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
-const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:''};
+const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, taxBase:0, hasSublease:true, subleaseName:'舒芙蕾', subleaseRent:15000};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
 let isLoadingDaily = false;
@@ -319,6 +345,14 @@ function getMonthlyCalcBase(m, c, month = ''){
     };
 }
 
+function getFixedExpenses(){
+    return get('fixedExpenses').map((item, index) => ({
+        id: item.id || `legacy_${index}`,
+        name: item.name || `固定支出${index + 1}`,
+        amount: num(item.amount)
+    }));
+}
+
 function lockMonthlyRatesForPdf(month){
     const c = cfg();
     const m = getMonthlyData(month);
@@ -333,12 +367,12 @@ function getFixedExpenseRows(m, c){
     const {start, rates} = getMonthlyCalcBase(m, c);
     const e110Use = Math.max(0, num(m.e110) - num(start.i110));
     const e220Use = Math.max(0, num(m.e220) - num(start.i220));
-    const se110Use = Math.max(0, num(m.se110) - num(start.is110));
-    const se220Use = Math.max(0, num(m.se220) - num(start.is220));
+    const se110Use = c.hasSublease ? Math.max(0, num(m.se110) - num(start.is110)) : 0;
+    const se220Use = c.hasSublease ? Math.max(0, num(m.se220) - num(start.is220)) : 0;
     const eNet = Math.max(0, e110Use + e220Use - se110Use - se220Use);
     const waterUse = Math.max(0, num(m.w) - num(start.iw));
     const gasUse = Math.max(0, num(m.g) - num(start.ig));
-    return [
+    const baseRows = [
         {label:'房租', detail:'月租金', amount:num(m.rent)},
         {label:'公攤', detail:`輸入 ${money(m.pub)} × 0.75`, amount:num(m.pub) * 0.75},
         {label:'電費', detail:`總110 ${num(start.i110)}→${num(m.e110)}，總220 ${num(start.i220)}→${num(m.e220)}，分表扣 ${se110Use.toFixed(1)}+${se220Use.toFixed(1)}，實用 ${eNet.toFixed(1)} 度 × ${unitMoney(rates.ue)}`, amount:eNet * num(rates.ue)},
@@ -346,9 +380,16 @@ function getFixedExpenseRows(m, c){
         {label:'瓦斯', detail:`${num(start.ig)}→${num(m.g)}，用量 ${gasUse.toFixed(1)} 度 × ${unitMoney(rates.ug)}`, amount:gasUse * num(rates.ug)},
         {label:'稅金', detail:`稅金基數 ${money(m.taxb)} × 5%`, amount:num(m.taxb) * 0.05}
     ];
+    const customRows = getFixedExpenses().map(item => ({
+        label:item.name,
+        detail:'自訂固定支出',
+        amount:num(m.fixed?.[item.id] ?? item.amount)
+    }));
+    return baseRows.concat(customRows);
 }
 
 function getSouffleExpenseRows(m, c){
+    if(!c.hasSublease) return [];
     const {start, rates} = getMonthlyCalcBase(m, c);
     const se110Use = Math.max(0, num(m.se110) - num(start.is110));
     const se220Use = Math.max(0, num(m.se220) - num(start.is220));
@@ -358,7 +399,7 @@ function getSouffleExpenseRows(m, c){
     const pubAmount = num(m.pub) * 0.75;
     const legacySouffle = m.souffle || {};
     const souffle = {
-        rent: legacySouffle.rent ?? c.souffleRent ?? 15000,
+        rent: legacySouffle.rent ?? c.subleaseRent ?? c.souffleRent ?? 15000,
         revenue: legacySouffle.revenue ?? c.souffleRevenue ?? 0
     };
     return [
@@ -494,18 +535,23 @@ function renderSouffleReport(shouldScroll = true){
     const month = document.getElementById('rMonth').value;
     const m = getMonthlyData(month);
     const c = cfg();
+    if(!c.hasSublease){
+        document.getElementById('souffleArea').innerHTML = '';
+        return;
+    }
     let total = 0;
     const rows = getSouffleExpenseRows(m, c).map(row => {
         total += row.amount;
         return `<tr><td style="text-align:left;">${row.label}</td><td style="text-align:left;">${row.detail}</td><td>${money(row.amount)}</td></tr>`;
     }).join('');
+    const reportName = c.subleaseName || '分租';
     document.getElementById('souffleArea').innerHTML = `
-        <h4 class="section-title">舒芙蕾報表</h4>
+        <h4 class="section-title">${reportName}報表</h4>
         <div class="card report-card" style="padding:0">
             <table>
                 <tr><th>項目</th><th>計算方式</th><th>金額</th></tr>
                 ${rows}
-                <tr class="grand-total-row"><td colspan="2" style="text-align:left;">舒芙蕾總計</td><td>${money(total)}</td></tr>
+                <tr class="grand-total-row"><td colspan="2" style="text-align:left;">${reportName}總計</td><td>${money(total)}</td></tr>
             </table>
         </div>`;
     if(shouldScroll) document.getElementById('souffleArea').scrollIntoView({behavior:'smooth', block:'start'});
@@ -518,7 +564,8 @@ function exportReportPdf(){
     const reportHtml = document.getElementById('repArea').innerHTML + document.getElementById('souffleArea').innerHTML;
     const preview = window.open('', '_blank');
     if(!preview){
-        alert('瀏覽器阻擋了報表預覽頁，請允許彈出視窗後再試一次');
+        alert('預覽頁被瀏覽器擋住，改用目前頁面開啟列印 / 儲存 PDF。');
+        printCurrentReport();
         return;
     }
     preview.document.open();
@@ -571,6 +618,16 @@ function exportReportPdf(){
 </body>
 </html>`);
     preview.document.close();
+    preview.onload = () => preview.print();
+    setTimeout(() => { try { preview.print(); } catch(e) {} }, 500);
+}
+
+function printCurrentReport(){
+    document.body.classList.add('printing-report');
+    setTimeout(() => {
+        window.print();
+        setTimeout(() => document.body.classList.remove('printing-report'), 500);
+    }, 50);
 }
 
 function loadDaily(){
@@ -622,14 +679,18 @@ function saveDaily(isAuto = false){
 function loadMonthly(){
     isLoadingMonthly = true;
     clearTimeout(scheduleMonthlyAutosave.timer);
-    const m = JSON.parse(localStorage.getItem(KEY+'m_'+document.getElementById('mMonth').value))||{staff:{}, bonus:{}};
     const month = document.getElementById('mMonth').value;
-    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
-    ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k]||'');
+    const m = JSON.parse(localStorage.getItem(KEY+'m_'+month))||{staff:{}, bonus:{}};
     const c = cfg();
+    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
+    ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k] ?? '');
+    if(!Object.prototype.hasOwnProperty.call(m, 'pub') && c.publicBase) document.getElementById('mpub').value = c.publicBase;
+    if(!Object.prototype.hasOwnProperty.call(m, 'taxb') && c.taxBase) document.getElementById('mtaxb').value = c.taxBase;
+    renderMonthlyFixedExpenses(m);
+    toggleSubleaseMonthly(c);
     const legacySouffle = m.souffle || {};
     const souffle = {
-        rent: legacySouffle.rent ?? c.souffleRent ?? 15000,
+        rent: legacySouffle.rent ?? c.subleaseRent ?? c.souffleRent ?? 15000,
         revenue: legacySouffle.revenue ?? c.souffleRevenue ?? 0
     };
     document.getElementById('msouffleRent').value = souffle.rent || 15000;
@@ -639,15 +700,31 @@ function loadMonthly(){
     bindMonthlyAutosave();
     isLoadingMonthly = false;
 }
+
+function renderMonthlyFixedExpenses(m){
+    const items = getFixedExpenses();
+    document.getElementById('mFixedArea').innerHTML = items.map(item => `
+        <div class="form-group">
+            <label>${item.name}</label>
+            <input type="number" inputmode="decimal" class="m-fixed" data-id="${item.id}" value="${m.fixed?.[item.id] ?? item.amount ?? ''}">
+        </div>`).join('') || '<div class="report-note">尚未新增自訂固定支出</div>';
+}
+
+function toggleSubleaseMonthly(c = cfg()){
+    const section = document.getElementById('subleaseMonthlySection');
+    if(section) section.style.display = c.hasSublease ? 'block' : 'none';
+}
 function collectMonthlyData(){
-    const m = document.getElementById('mMonth').value, s={}, b={};
+    const m = document.getElementById('mMonth').value, s={}, b={}, fixed={};
     const c = cfg();
     const existingMonth = getMonthlyData(m);
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
+    document.querySelectorAll('.m-fixed').forEach(i=>fixed[i.dataset.id]=parseFloat(i.value)||0);
     return {
         staff:s,
         bonus:b,
+        fixed:fixed,
         souffle:{
             rent:parseFloat(document.getElementById('msouffleRent').value)||0,
             revenue:parseFloat(document.getElementById('msouffleRevenue').value)||0
@@ -742,12 +819,17 @@ function manualUpdateVendorTotal(){
     data.vs[vn] = parseFloat(a); set('d_'+date, data); calcRecon(); alert('數據已修正');
 }
 function renderSettings(){
-    const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
+    const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicBase:'publicBase', sTaxBase:'taxBase', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
     if(document.getElementById('sStartMonth')) document.getElementById('sStartMonth').value = c.startMonth || document.getElementById('mMonth')?.value || currentMonthValue();
+    if(document.getElementById('sHasSublease')) document.getElementById('sHasSublease').checked = !!c.hasSublease;
+    if(document.getElementById('sSubleaseName')) document.getElementById('sSubleaseName').value = c.subleaseName || '分租';
+    if(document.getElementById('sSubleaseRent')) document.getElementById('sSubleaseRent').value = c.subleaseRent ?? 15000;
+    renderFixedExpenseSettings();
     document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
     document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div class="list-row"><span>${v.name} (${v.type}${v.type==='品項' ? ` / ${(v.items||[]).length}項` : ''})</span><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增廠商</div>';
     toggleVendorItemFields();
+    toggleSubleaseSettings();
 }
 function saveSettings(){
     const c = cfg();
@@ -757,6 +839,11 @@ function saveSettings(){
         uw:parseFloat(document.getElementById('upWater').value)||0,
         ug:parseFloat(document.getElementById('upGas').value)||0,
         petty:parseFloat(document.getElementById('sPetty').value)||0,
+        publicBase:parseFloat(document.getElementById('sPublicBase').value)||0,
+        taxBase:parseFloat(document.getElementById('sTaxBase').value)||0,
+        hasSublease:!!document.getElementById('sHasSublease')?.checked,
+        subleaseName:document.getElementById('sSubleaseName').value.trim() || '分租',
+        subleaseRent:parseFloat(document.getElementById('sSubleaseRent').value)||0,
         i110:parseFloat(document.getElementById('si110').value)||0,
         i220:parseFloat(document.getElementById('si220').value)||0,
         is110:parseFloat(document.getElementById('sis110').value)||0,
@@ -768,6 +855,8 @@ function saveSettings(){
     set('cfg', c);
     saveStartForMonth(startMonth, startFromCfg(c));
     alert('設定已儲存');
+    loadMonthly();
+    if(document.getElementById('rMonth')?.value) genFullReport();
 }
 function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.startsWith(KEY)) d[k]=localStorage.getItem(k); }); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`Wazi_Backup.json`; a.click(); }
 function importData(event) {
@@ -786,6 +875,35 @@ function importData(event) {
     reader.readAsText(file);
 }
 function clearAllData(){ if(confirm('⚠️ 確定清空？')){ localStorage.clear(); location.reload(); } }
+function renderFixedExpenseSettings(){
+    const box = document.getElementById('listFixedExpenses');
+    if(!box) return;
+    box.innerHTML = getFixedExpenses().map((item,i)=>`<div class="list-row"><span>${item.name} (${money(item.amount)})</span><button class="btn btn-danger" onclick="delFixedExpense(${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增固定支出</div>';
+}
+function addFixedExpense(){
+    const name = document.getElementById('newFixedName').value.trim();
+    const amount = parseFloat(document.getElementById('newFixedAmount').value) || 0;
+    if(!name){ alert('請輸入固定支出名稱'); return; }
+    const items = get('fixedExpenses');
+    items.push({id:'fx_'+Date.now(), name:name, amount:amount});
+    set('fixedExpenses', items);
+    document.getElementById('newFixedName').value = '';
+    document.getElementById('newFixedAmount').value = '';
+    renderFixedExpenseSettings();
+    loadMonthly();
+}
+function delFixedExpense(i){
+    const items = get('fixedExpenses');
+    items.splice(i, 1);
+    set('fixedExpenses', items);
+    renderFixedExpenseSettings();
+    loadMonthly();
+}
+function toggleSubleaseSettings(){
+    const has = !!document.getElementById('sHasSublease')?.checked;
+    const fields = document.getElementById('subleaseSettingsFields');
+    if(fields) fields.style.display = has ? 'grid' : 'none';
+}
 function toggleVendorItemFields(){
     const type = document.getElementById('newVendorType')?.value;
     const box = document.getElementById('vendorItemsFields');
