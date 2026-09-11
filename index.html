@@ -64,6 +64,9 @@
         .misc-list { margin-top: 8px; }
         .misc-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
         .misc-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
+        .mode-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .mode-btn { border: 1px solid var(--line); background: #fbfcfb; color: var(--text); border-radius: 8px; padding: 10px; font-weight: bold; }
+        .mode-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
         .report-card { overflow: visible; }
         .report-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 4px 0 10px; }
         .save-toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 20px); min-width: 220px; max-width: calc(100% - 32px); padding: 13px 16px; border-radius: 10px; background: var(--primary-dark); color: white; text-align: center; font-weight: bold; box-shadow: 0 8px 24px rgba(38,50,45,0.22); opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 999; }
@@ -110,6 +113,11 @@
         <div class="date-picker-wrap"><input type="date" id="logDate" onchange="loadDaily()"></div>
         <div class="card">
             <h4 style="margin:0 0 10px;">💰 今日收銀</h4>
+            <div class="mode-row">
+                <button type="button" class="mode-btn active" id="cashModeScaleBtn" onclick="setCashMode('scale')">秤重計算</button>
+                <button type="button" class="mode-btn" id="cashModeDirectBtn" onclick="setCashMode('direct')">直接輸入</button>
+            </div>
+            <div id="cashScaleArea">
             <div class="grid">
                 <div class="form-group"><label>千元</label><input type="number" inputmode="decimal" id="c1000" oninput="calcDaily()"></div>
                 <div class="form-group"><label>百元</label><input type="number" inputmode="decimal" id="c100" oninput="calcDaily()"></div>
@@ -119,9 +127,13 @@
                 <div class="form-group"><label>$10重</label><input type="number" inputmode="decimal" id="w10" oninput="calcDaily()"></div>
                 <div class="form-group"><label>$5重</label><input type="number" inputmode="decimal" id="w5" oninput="calcDaily()"></div>
             </div>
+            </div>
+            <div id="cashDirectArea" style="display:none;">
+                <div class="form-group"><label>現金營業額</label><input type="number" inputmode="decimal" id="cashDirect" oninput="calcDaily()"></div>
+            </div>
             <div class="grid">
-                <div class="form-group"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
-                <div class="form-group"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
+                <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
+                <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
@@ -204,6 +216,8 @@
                 <div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div>
                 <div class="form-group"><label>公攤費基數</label><input type="number" id="sPublicBase"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" id="sTaxBase"></div>
+                <label class="check-row"><input type="checkbox" id="sShowOnlinePay">顯示網路收入</label>
+                <label class="check-row"><input type="checkbox" id="sShowScanPay">顯示掃碼支付</label>
             </div>
             <h4 class="section-title">當前起始度數</h4>
             <div class="grid">
@@ -271,7 +285,7 @@
 const KEY = "wazi_v23_";
 const get = (k)=>JSON.parse(localStorage.getItem(KEY+k)) || [];
 const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
-const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, taxBase:0, hasSublease:true, subleaseName:'舒芙蕾', subleaseRent:15000};
+const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, taxBase:0, hasSublease:true, subleaseName:'舒芙蕾', subleaseRent:15000, showOnlinePay:true, showScanPay:true};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
 let isLoadingDaily = false;
@@ -455,12 +469,43 @@ function switchTab(id){
 function calcDaily(){
     const c = cfg(); 
     const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
-    const hasInput = ['c1000','c100','w50','w10','w5','pOnline','pScan'].some(id=>document.getElementById(id).value !== '');
+    const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
+    const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
+    const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '');
     if(!hasInput) { document.getElementById('cSumDisplay').innerText = `$ 0`; return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
-    const result = (cashRaw - c.petty) + val('pOnline') + val('pScan');
+    const cash = cashMode === 'direct' ? val('cashDirect') : (cashRaw - c.petty);
+    const online = c.showOnlinePay ? val('pOnline') : 0;
+    const scan = c.showScanPay ? val('pScan') : 0;
+    const result = cash + online + scan;
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(result).toLocaleString()}`;
     scheduleDailyAutosave();
+}
+
+function setCashMode(mode){
+    const direct = mode === 'direct';
+    document.getElementById('cashScaleArea').style.display = direct ? 'none' : 'block';
+    document.getElementById('cashDirectArea').style.display = direct ? 'block' : 'none';
+    document.getElementById('cashModeScaleBtn').classList.toggle('active', !direct);
+    document.getElementById('cashModeDirectBtn').classList.toggle('active', direct);
+    calcDaily();
+}
+
+function applyPaymentVisibility(){
+    const c = cfg();
+    const online = document.getElementById('onlinePayGroup');
+    const scan = document.getElementById('scanPayGroup');
+    if(online) online.style.display = c.showOnlinePay ? 'block' : 'none';
+    if(scan) scan.style.display = c.showScanPay ? 'block' : 'none';
+}
+
+function getDailyRevenue(d, c){
+    const val = (v)=>parseFloat(v)||0;
+    const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
+    const cash = d.cashMode === 'direct' ? val(d.cashDirect) : (cashOnly - c.petty);
+    const online = c.showOnlinePay ? val(d.pOnline) : 0;
+    const scan = c.showScanPay ? val(d.pScan) : 0;
+    return {cash, online, scan, total: cash + online + scan};
 }
 
 function showSaveToast(message){
@@ -508,18 +553,17 @@ function genFullReport(){
     const c = cfg();
     const activeVendors = get('vendors');
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
+    const revenueHead = `<th>日</th><th>現金</th>${c.showOnlinePay ? '<th>網路</th>' : ''}${c.showScanPay ? '<th>掃碼</th>' : ''}<th>總額</th>`;
+    const revenueColspan = 3 + (c.showOnlinePay ? 1 : 0) + (c.showScanPay ? 1 : 0);
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         if(d){
-            const val = (v)=>parseFloat(v)||0;
-            const hasData = [d.c1000, d.c100, d.w50, d.w10, d.w5, d.pOnline, d.pScan].some(v=>v!='' && v!=null);
+            const hasData = [d.c1000, d.c100, d.w50, d.w10, d.w5, d.cashDirect, d.pOnline, d.pScan].some(v=>v!='' && v!=null);
             if(hasData){
-                const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
-                const cash = cashOnly - c.petty;
-                const dayT = cash + val(d.pOnline) + val(d.pScan);
-                dayRows += `<tr><td>${i}</td><td>$${Math.round(cash).toLocaleString()}</td><td>$${val(d.pOnline).toLocaleString()}</td><td>$${val(d.pScan).toLocaleString()}</td><td>$${Math.round(dayT).toLocaleString()}</td></tr>`;
-                tCash += cash; tOnline += val(d.pOnline); tScan += val(d.pScan); tDays++;
+                const rev = getDailyRevenue(d, c);
+                dayRows += `<tr><td>${i}</td><td>$${Math.round(rev.cash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(rev.online).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(rev.scan).toLocaleString()}</td>` : ''}<td>$${Math.round(rev.total).toLocaleString()}</td></tr>`;
+                tCash += rev.cash; tOnline += rev.online; tScan += rev.scan; tDays++;
             }
             if(d.vs) for(let k in d.vs){
                 const entry = getVendorEntry(k, d.vs[k], activeVendors);
@@ -556,7 +600,7 @@ function genFullReport(){
             <div class="stat-card">平均日營業額<br><b>$${tDays>0?Math.round(tRev/tDays).toLocaleString():0}</b></div>
         </div>
         <h4 class="section-title">📅 每日營收</h4>
-        <div class="card report-card" style="padding:0"><table><tr><th>日</th><th>現金</th><th>網路</th><th>掃碼</th><th>總額</th></tr>${dayRows || '<tr><td colspan="5">本月尚無每日記帳資料</td></tr>'}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td><td colspan="2">$${Math.round(tOnline+tScan).toLocaleString()}</td><td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
+        <div class="card report-card" style="padding:0"><table><tr>${revenueHead}</tr>${dayRows || `<tr><td colspan="${revenueColspan}">本月尚無每日記帳資料</td></tr>`}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(tOnline).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(tScan).toLocaleString()}</td>` : ''}<td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
         <h4 class="section-title">📦 支出與人事</h4>
         <div class="card report-card" style="padding:0"><table><tr><th colspan="4" style="text-align:left;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="5">無廠商進貨</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="2" style="text-align:left;">固定支出</th><th colspan="2" style="text-align:left;">計算方式</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">人事成本</th><th>合計</th></tr>${staffHtml || '<tr><td colspan="5">無人事資料</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
         <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff).toLocaleString()}</div>`;
@@ -666,7 +710,9 @@ function loadDaily(){
     isLoadingDaily = true;
     clearTimeout(scheduleDailyAutosave.timer);
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
-    ['c1000','c100','w50','w10','w5','pOnline','pScan'].forEach(f=>document.getElementById(f).value=d[f]||'');
+    ['c1000','c100','w50','w10','w5','pOnline','pScan','cashDirect'].forEach(f=>document.getElementById(f).value=d[f]||'');
+    setCashMode(d.cashMode || (d.cashDirect ? 'direct' : 'scale'));
+    applyPaymentVisibility();
     dailyMisc = d.misc || [];
     let html = ""; const vendors = get('vendors');
     vendors.forEach(v => {
@@ -723,7 +769,8 @@ function saveDaily(isAuto = false){
     const date = document.getElementById('logDate').value, vs = {};
     document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
-    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
+    const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
+    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
     showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
@@ -928,6 +975,8 @@ function renderSettings(){
     const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicBase:'publicBase', sTaxBase:'taxBase', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
     if(document.getElementById('sStartMonth')) document.getElementById('sStartMonth').value = c.startMonth || document.getElementById('mMonth')?.value || currentMonthValue();
+    if(document.getElementById('sShowOnlinePay')) document.getElementById('sShowOnlinePay').checked = c.showOnlinePay !== false;
+    if(document.getElementById('sShowScanPay')) document.getElementById('sShowScanPay').checked = c.showScanPay !== false;
     if(document.getElementById('sHasSublease')) document.getElementById('sHasSublease').checked = !!c.hasSublease;
     if(document.getElementById('sSubleaseName')) document.getElementById('sSubleaseName').value = c.subleaseName || '分租';
     if(document.getElementById('sSubleaseRent')) document.getElementById('sSubleaseRent').value = c.subleaseRent ?? 15000;
@@ -947,6 +996,8 @@ function saveSettings(){
         petty:parseFloat(document.getElementById('sPetty').value)||0,
         publicBase:parseFloat(document.getElementById('sPublicBase').value)||0,
         taxBase:parseFloat(document.getElementById('sTaxBase').value)||0,
+        showOnlinePay:!!document.getElementById('sShowOnlinePay')?.checked,
+        showScanPay:!!document.getElementById('sShowScanPay')?.checked,
         hasSublease:!!document.getElementById('sHasSublease')?.checked,
         subleaseName:document.getElementById('sSubleaseName').value.trim() || '分租',
         subleaseRent:parseFloat(document.getElementById('sSubleaseRent').value)||0,
@@ -961,6 +1012,8 @@ function saveSettings(){
     set('cfg', c);
     saveStartForMonth(startMonth, startFromCfg(c));
     alert('設定已儲存');
+    applyPaymentVisibility();
+    calcDaily();
     loadMonthly();
     if(document.getElementById('rMonth')?.value) genFullReport();
 }
