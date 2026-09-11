@@ -62,7 +62,7 @@
         .vendor-item-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
         .vendor-item-grid label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: bold; text-align: center; }
         .misc-list { margin-top: 8px; }
-        .misc-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .misc-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
         .misc-row button { width: auto; min-width: 48px; padding: 6px 10px; margin: 0; }
         .mode-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .mode-btn { border: 1px solid var(--line); background: #fbfcfb; color: var(--text); border-radius: 8px; padding: 10px; font-weight: bold; }
@@ -147,7 +147,8 @@
                 <label class="check-row"><input type="checkbox" id="miscUnpaid" onchange="toggleMiscPayer()">未支付 / 代墊</label>
                 <div class="form-group" id="miscPayerWrap" style="display:none;"><label>代墊人</label><select id="miscPayer"></select></div>
             </div>
-            <button class="btn btn-primary" onclick="addMiscExpense()">+ 新增雜支</button>
+            <button class="btn btn-primary" id="miscSubmitBtn" onclick="addMiscExpense()">+ 新增雜支</button>
+            <button class="btn btn-warning" id="miscCancelEditBtn" style="display:none;" onclick="cancelMiscEdit()">取消編輯</button>
             <div id="miscList" class="misc-list"></div>
         </div>
         <button class="btn btn-success" style="margin-top:15px;" onclick="saveDaily()">✅ 儲存今日數據</button>
@@ -288,6 +289,7 @@ const set = (k,v)=>localStorage.setItem(KEY+k, JSON.stringify(v));
 const defaultCfg = {petty:8000, i110:0, i220:0, is110:0, is220:0, iw:0, ig:0, ue:5, uw:12, ug:20, startMonth:'', publicBase:0, taxBase:0, hasSublease:false, subleaseName:'分租', subleaseRent:15000, showOnlinePay:true, showScanPay:true};
 const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KEY+'cfg')) || {});
 let dailyMisc = [];
+let editingMiscIndex = null;
 let isLoadingDaily = false;
 let isLoadingMonthly = false;
 const num = (v)=>parseFloat(v) || 0;
@@ -742,7 +744,7 @@ function toggleMiscPayer(){
 function renderMiscExpenses(){
     document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>{
         const status = item.unpaid ? (item.settled ? `已結算 / ${item.payer || '未指定'}` : `未支付 / ${item.payer || '未指定'}`) : '已支付';
-        return `<div class="misc-row"><span>${item.name}<br><small style="color:#728078;">${status}</small></span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`;
+        return `<div class="misc-row"><span>${item.name}<br><small style="color:#728078;">${status}</small></span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-primary" onclick="editMiscExpense(${i})">改</button><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`;
     }).join('');
 }
 function addMiscExpense(){
@@ -753,19 +755,52 @@ function addMiscExpense(){
     if(!name){ alert('請輸入雜支品名'); return; }
     if(amount <= 0){ alert('請輸入雜支金額'); return; }
     if(unpaid && payer === '其他'){
-        payer = (prompt('請輸入代墊人姓名') || '').trim();
+        const existingPayer = editingMiscIndex !== null ? (dailyMisc[editingMiscIndex]?.payer || '') : '';
+        payer = (prompt('請輸入代墊人姓名', existingPayer === '其他' ? '' : existingPayer) || '').trim();
         if(!payer) return;
     }
-    dailyMisc.push({name, amount, unpaid, payer, settled:false});
+    const existing = editingMiscIndex !== null ? (dailyMisc[editingMiscIndex] || {}) : {};
+    const next = {name, amount, unpaid, payer, settled: unpaid ? !!existing.settled : false};
+    if(existing.settledAt && next.settled) next.settledAt = existing.settledAt;
+    if(editingMiscIndex !== null) dailyMisc[editingMiscIndex] = next;
+    else dailyMisc.push(next);
+    resetMiscForm();
+    renderMiscExpenses();
+    saveDaily(true);
+}
+function editMiscExpense(index){
+    const item = dailyMisc[index];
+    if(!item) return;
+    editingMiscIndex = index;
+    document.getElementById('miscName').value = item.name || '';
+    document.getElementById('miscAmount').value = item.amount || '';
+    document.getElementById('miscUnpaid').checked = !!item.unpaid;
+    renderMiscPayers();
+    if(item.unpaid){
+        const select = document.getElementById('miscPayer');
+        const values = Array.from(select.options).map(option => option.value);
+        select.value = values.includes(item.payer) ? item.payer : '其他';
+    }
+    toggleMiscPayer();
+    document.getElementById('miscSubmitBtn').innerText = '更新雜支';
+    document.getElementById('miscCancelEditBtn').style.display = 'flex';
+}
+function resetMiscForm(){
+    editingMiscIndex = null;
     document.getElementById('miscName').value = '';
     document.getElementById('miscAmount').value = '';
     if(document.getElementById('miscUnpaid')) document.getElementById('miscUnpaid').checked = false;
     toggleMiscPayer();
-    renderMiscExpenses();
-    saveDaily(true);
+    document.getElementById('miscSubmitBtn').innerText = '+ 新增雜支';
+    document.getElementById('miscCancelEditBtn').style.display = 'none';
+}
+function cancelMiscEdit(){
+    resetMiscForm();
 }
 function deleteMiscExpense(index){
     dailyMisc.splice(index, 1);
+    if(editingMiscIndex === index) resetMiscForm();
+    else if(editingMiscIndex !== null && editingMiscIndex > index) editingMiscIndex--;
     renderMiscExpenses();
     saveDaily(true);
 }
