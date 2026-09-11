@@ -221,13 +221,13 @@
                 <label class="check-row"><input type="checkbox" id="sShowOnlinePay">顯示網路收入</label>
                 <label class="check-row"><input type="checkbox" id="sShowScanPay">顯示掃碼支付</label>
             </div>
-            <h4 class="section-title">當前起始度數</h4>
+            <h4 class="section-title">上次結算度數</h4>
             <div class="grid">
-                <div class="form-group"><label>起始度數月份</label><input type="month" id="sStartMonth"></div>
+                <div class="form-group"><label>上次結算月份</label><input type="month" id="sStartMonth"></div>
                 <div class="form-group"><label>總110</label><input type="number" id="si110"></div>
                 <div class="form-group"><label>總220</label><input type="number" id="si220"></div>
-                <div class="form-group"><label>水始</label><input type="number" id="siw"></div>
-                <div class="form-group"><label>瓦斯始</label><input type="number" id="sig"></div>
+                <div class="form-group"><label>水</label><input type="number" id="siw"></div>
+                <div class="form-group"><label>瓦斯</label><input type="number" id="sig"></div>
             </div>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
         </div>
@@ -237,8 +237,8 @@
             <div id="subleaseSettingsFields" class="grid">
                 <div class="form-group"><label>分租名稱</label><input type="text" id="sSubleaseName" placeholder="例如：舒芙蕾"></div>
                 <div class="form-group"><label>分租租金</label><input type="number" inputmode="decimal" id="sSubleaseRent"></div>
-                <div class="form-group"><label>分租分表110起始</label><input type="number" inputmode="decimal" id="sis110"></div>
-                <div class="form-group"><label>分租分表220起始</label><input type="number" inputmode="decimal" id="sis220"></div>
+                <div class="form-group"><label>分租分表110</label><input type="number" inputmode="decimal" id="sis110"></div>
+                <div class="form-group"><label>分租分表220</label><input type="number" inputmode="decimal" id="sis220"></div>
             </div>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存分租設定</button>
         </div>
@@ -319,6 +319,11 @@ function saveStartForMonth(month, start){
     if(month) set('start_'+month, start);
 }
 
+function saveLastSettledAsNextStart(c){
+    const nextMonth = nextMonthValue(c.startMonth);
+    saveStartForMonth(nextMonth || c.startMonth, startFromCfg(c));
+}
+
 function getSavedStartForMonth(month){
     const start = JSON.parse(localStorage.getItem(KEY+'start_'+month));
     return start && typeof start === 'object' ? start : null;
@@ -372,7 +377,7 @@ function renderMonthlyStartSummary(month, m, c){
     const base = getMonthlyCalcBase(m, c, month);
     const start = base.start || {};
     const subleaseMeters = c.hasSublease ? `　分租110: ${num(start.is110)}　分租220: ${num(start.is220)}` : '';
-    box.innerHTML = `<b>${month || '本月'} 起始度數</b><br>總110: ${num(start.i110)}　總220: ${num(start.i220)}　水: ${num(start.iw)}　瓦斯: ${num(start.ig)}${subleaseMeters}`;
+    box.innerHTML = `<b>${month || '本月'} 計算基準</b><br>總110: ${num(start.i110)}　總220: ${num(start.i220)}　水: ${num(start.iw)}　瓦斯: ${num(start.ig)}${subleaseMeters}`;
 }
 
 function getFixedExpenses(){
@@ -969,7 +974,7 @@ function updateStartDegreesFromMonthly(){
     c.is220=parseFloat(document.getElementById('mse220').value)||0;
     c.iw=parseFloat(document.getElementById('mw').value)||0;
     c.ig=parseFloat(document.getElementById('mg').value)||0;
-    c.startMonth = nextMonth;
+    c.startMonth = month;
     set('cfg', c);
     saveStartForMonth(nextMonth, startFromCfg(c));
 }
@@ -993,7 +998,7 @@ function showLiveCalc(type){
     const start = num(base.start[startKey]);
     const hint = document.getElementById('hint_'+type);
     if(rawValue === ''){
-        if(hint) hint.innerText = `起始: ${start}，請輸入結束度數`;
+        if(hint) hint.innerText = `基準: ${start}，請輸入結束度數`;
         scheduleMonthlyAutosave();
         return;
     }
@@ -1074,7 +1079,7 @@ function saveSettings(){
         startMonth:startMonth
     });
     set('cfg', c);
-    saveStartForMonth(startMonth, startFromCfg(c));
+    saveLastSettledAsNextStart(c);
     alert('設定已儲存');
     applyPaymentVisibility();
     calcDaily();
