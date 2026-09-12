@@ -772,15 +772,17 @@ function showPdfPreview(month){
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#f3f5f2;display:flex;flex-direction:column;';
     overlay.innerHTML = `
         <style>
-            #pdfPreviewPaper { width:100%; max-width:430px; min-height:auto; background:#fff; color:#26322d; padding:10px; margin:0 auto; box-shadow:0 4px 20px rgba(38,50,45,.18); }
-            #pdfPreviewPaper .card { padding:8px !important; margin-bottom:8px !important; border-radius:8px !important; box-shadow:none !important; overflow:visible !important; }
-            #pdfPreviewPaper .stat-grid { grid-template-columns:1fr 1fr !important; gap:6px !important; }
-            #pdfPreviewPaper .stat-card { padding:7px !important; }
-            #pdfPreviewPaper .profit-box { padding:10px !important; font-size:16px !important; }
-            #pdfPreviewPaper .section-title { font-size:13px !important; padding:6px !important; margin:10px 0 6px !important; }
-            #pdfPreviewPaper table { width:100% !important; table-layout:auto !important; font-size:10px !important; border-collapse:collapse !important; }
-            #pdfPreviewPaper th, #pdfPreviewPaper td { padding:5px 3px !important; word-break:break-word !important; line-height:1.35 !important; }
-            #pdfPreviewPaper th:last-child, #pdfPreviewPaper td:last-child { min-width:54px; white-space:nowrap; }
+            #pdfPreviewPaper { width:100%; max-width:390px; min-height:auto; background:#fff; color:#26322d; padding:12px; margin:0 auto; box-shadow:0 4px 20px rgba(38,50,45,.18); }
+            #pdfPreviewPaper h2 { font-size:20px !important; line-height:1.25 !important; }
+            #pdfPreviewPaper .card { padding:10px !important; margin-bottom:10px !important; border-radius:8px !important; box-shadow:none !important; overflow:visible !important; }
+            #pdfPreviewPaper .stat-grid { grid-template-columns:1fr 1fr !important; gap:8px !important; }
+            #pdfPreviewPaper .stat-card { padding:9px !important; font-size:13px !important; }
+            #pdfPreviewPaper .stat-card b { font-size:16px !important; }
+            #pdfPreviewPaper .profit-box { padding:12px !important; font-size:18px !important; }
+            #pdfPreviewPaper .section-title { font-size:16px !important; padding:8px !important; margin:12px 0 8px !important; }
+            #pdfPreviewPaper table { width:100% !important; table-layout:auto !important; font-size:12px !important; border-collapse:collapse !important; }
+            #pdfPreviewPaper th, #pdfPreviewPaper td { padding:7px 4px !important; word-break:break-word !important; line-height:1.4 !important; }
+            #pdfPreviewPaper th:last-child, #pdfPreviewPaper td:last-child { min-width:68px; white-space:nowrap; }
         </style>
         <div style="position:sticky;top:0;z-index:2;background:#f3f5f2;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #d8e1d6;">
             <button class="btn btn-success" onclick="savePdfFromPreview()">儲存 / 分享 PDF</button>
@@ -811,11 +813,11 @@ async function savePdfFromPreview(){
         await loadPdfGenerator();
         const captureWidth = Math.ceil(source.scrollWidth || source.getBoundingClientRect().width || 390);
         const blob = await html2pdf().set({
-            margin: 8,
+            margin: 3,
             filename: pendingPdfReport.filename,
             image: {type: 'jpeg', quality: 0.98},
             html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: captureWidth, scrollY: 0},
-            jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'},
+            jsPDF: {unit: 'mm', format: [120, 213], orientation: 'portrait'},
             pagebreak: {mode: ['css', 'legacy']}
         }).from(source).outputPdf('blob');
         const file = new File([blob], pendingPdfReport.filename, {type:'application/pdf'});
