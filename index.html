@@ -760,13 +760,19 @@ async function exportReportPdf(){
     genFullReport();
     const filename = `Wazi_${month}_報表.pdf`;
     const source = document.createElement('div');
-    source.style.position = 'absolute';
-    source.style.left = '-9999px';
+    source.style.position = 'fixed';
+    source.style.left = '0';
     source.style.top = '0';
     source.style.width = '794px';
+    source.style.maxWidth = '794px';
+    source.style.minHeight = '1123px';
     source.style.background = '#ffffff';
     source.style.color = '#26322d';
     source.style.padding = '16px';
+    source.style.zIndex = '99999';
+    source.style.opacity = '1';
+    source.style.pointerEvents = 'none';
+    source.style.overflow = 'visible';
     source.innerHTML = `<h2 style="text-align:center;margin:8px 0 14px;">Wazi ${month} 報表</h2>${document.getElementById('repArea').innerHTML}${document.getElementById('souffleArea').innerHTML}`;
     document.body.appendChild(source);
     try{
@@ -776,7 +782,7 @@ async function exportReportPdf(){
             margin: 8,
             filename: filename,
             image: {type: 'jpeg', quality: 0.98},
-            html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff'},
+            html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794, scrollY: 0},
             jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'},
             pagebreak: {mode: ['css', 'legacy']}
         }).from(source).outputPdf('blob');
