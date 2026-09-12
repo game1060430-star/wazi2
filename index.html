@@ -741,6 +741,70 @@ function printCurrentReport(){
     }, 50);
 }
 
+function loadPdfGenerator(){
+    if(window.html2pdf) return Promise.resolve();
+    if(loadPdfGenerator.promise) return loadPdfGenerator.promise;
+    loadPdfGenerator.promise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('PDF 產生工具載入失敗，請確認網路後再試一次。'));
+        document.head.appendChild(script);
+    });
+    return loadPdfGenerator.promise;
+}
+
+async function exportReportPdf(){
+    const month = document.getElementById('rMonth').value || 'report';
+    if(!lockMonthlyRatesForPdf(month)) return;
+    genFullReport();
+    const filename = `Wazi_${month}_報表.pdf`;
+    const source = document.createElement('div');
+    source.style.position = 'absolute';
+    source.style.left = '-9999px';
+    source.style.top = '0';
+    source.style.width = '794px';
+    source.style.background = '#ffffff';
+    source.style.color = '#26322d';
+    source.style.padding = '16px';
+    source.innerHTML = `<h2 style="text-align:center;margin:8px 0 14px;">Wazi ${month} 報表</h2>${document.getElementById('repArea').innerHTML}${document.getElementById('souffleArea').innerHTML}`;
+    document.body.appendChild(source);
+    try{
+        showSaveToast('正在產生 PDF...');
+        await loadPdfGenerator();
+        const blob = await html2pdf().set({
+            margin: 8,
+            filename: filename,
+            image: {type: 'jpeg', quality: 0.98},
+            html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff'},
+            jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'},
+            pagebreak: {mode: ['css', 'legacy']}
+        }).from(source).outputPdf('blob');
+        const file = new File([blob], filename, {type:'application/pdf'});
+        if(navigator.canShare && navigator.canShare({files:[file]})){
+            await navigator.share({files:[file], title:`Wazi ${month} 報表`});
+            showSaveToast('PDF 已開啟分享');
+        }else{
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                link.remove();
+            }, 30000);
+            alert('PDF 已產生。如果沒有自動儲存，請在開啟的檔案畫面使用 iPhone 分享鍵，選「儲存到檔案」。');
+        }
+    }catch(err){
+        if(err?.name !== 'AbortError') alert(err?.message || 'PDF 產生失敗，請再試一次。');
+    }finally{
+        source.remove();
+    }
+}
+
 function loadDaily(){
     isLoadingDaily = true;
     clearTimeout(scheduleDailyAutosave.timer);
