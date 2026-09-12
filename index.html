@@ -754,47 +754,67 @@ function loadPdfGenerator(){
     return loadPdfGenerator.promise;
 }
 
-async function exportReportPdf(){
+let pendingPdfReport = null;
+
+function exportReportPdf(){
     const month = document.getElementById('rMonth').value || 'report';
     if(!lockMonthlyRatesForPdf(month)) return;
     genFullReport();
     const filename = `Wazi_${month}_報表.pdf`;
-    const source = document.createElement('div');
-    source.style.position = 'fixed';
-    source.style.left = '0';
-    source.style.top = '0';
-    source.style.width = '794px';
-    source.style.maxWidth = '794px';
-    source.style.minHeight = '1123px';
-    source.style.background = '#ffffff';
-    source.style.color = '#26322d';
-    source.style.padding = '16px';
-    source.style.zIndex = '99999';
-    source.style.opacity = '1';
-    source.style.pointerEvents = 'none';
-    source.style.overflow = 'visible';
-    source.innerHTML = `<h2 style="text-align:center;margin:8px 0 14px;">Wazi ${month} 報表</h2>${document.getElementById('repArea').innerHTML}${document.getElementById('souffleArea').innerHTML}`;
-    document.body.appendChild(source);
+    pendingPdfReport = {month, filename};
+    showPdfPreview(month);
+}
+
+function showPdfPreview(month){
+    document.getElementById('pdfPreviewOverlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'pdfPreviewOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#f3f5f2;display:flex;flex-direction:column;';
+    overlay.innerHTML = `
+        <div style="position:sticky;top:0;z-index:2;background:#f3f5f2;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #d8e1d6;">
+            <button class="btn btn-success" onclick="savePdfFromPreview()">儲存 / 分享 PDF</button>
+            <button class="btn btn-danger" onclick="closePdfPreview()">關閉預覽</button>
+        </div>
+        <div style="padding:10px;color:#728078;font-size:13px;line-height:1.5;background:#fff7e8;border-bottom:1px solid #f0d6a8;">
+            請先確認報表內容，確認後按「儲存 / 分享 PDF」。iPhone 會跳出分享面板，可選「儲存到檔案」或分享到其他 App。
+        </div>
+        <div style="flex:1;overflow:auto;padding:12px;">
+            <div id="pdfPreviewPaper" style="width:794px;min-height:1123px;background:#fff;color:#26322d;padding:16px;margin:0 auto;box-shadow:0 4px 20px rgba(38,50,45,.18);">
+                <h2 style="text-align:center;margin:8px 0 14px;">Wazi ${month} 報表</h2>
+                ${document.getElementById('repArea').innerHTML}
+                ${document.getElementById('souffleArea').innerHTML}
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function closePdfPreview(){
+    document.getElementById('pdfPreviewOverlay')?.remove();
+}
+
+async function savePdfFromPreview(){
+    const source = document.getElementById('pdfPreviewPaper');
+    if(!source || !pendingPdfReport) return alert('找不到預覽內容，請重新按一次輸出 PDF。');
     try{
         showSaveToast('正在產生 PDF...');
         await loadPdfGenerator();
         const blob = await html2pdf().set({
             margin: 8,
-            filename: filename,
+            filename: pendingPdfReport.filename,
             image: {type: 'jpeg', quality: 0.98},
             html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794, scrollY: 0},
             jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'},
             pagebreak: {mode: ['css', 'legacy']}
         }).from(source).outputPdf('blob');
-        const file = new File([blob], filename, {type:'application/pdf'});
+        const file = new File([blob], pendingPdfReport.filename, {type:'application/pdf'});
         if(navigator.canShare && navigator.canShare({files:[file]})){
-            await navigator.share({files:[file], title:`Wazi ${month} 報表`});
+            await navigator.share({files:[file], title:`Wazi ${pendingPdfReport.month} 報表`});
             showSaveToast('PDF 已開啟分享');
         }else{
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = filename;
+            link.download = pendingPdfReport.filename;
             link.target = '_blank';
             document.body.appendChild(link);
             link.click();
@@ -806,8 +826,6 @@ async function exportReportPdf(){
         }
     }catch(err){
         if(err?.name !== 'AbortError') alert(err?.message || 'PDF 產生失敗，請再試一次。');
-    }finally{
-        source.remove();
     }
 }
 
