@@ -771,6 +771,17 @@ function showPdfPreview(month){
     overlay.id = 'pdfPreviewOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#f3f5f2;display:flex;flex-direction:column;';
     overlay.innerHTML = `
+        <style>
+            #pdfPreviewPaper { width:100%; max-width:430px; min-height:auto; background:#fff; color:#26322d; padding:10px; margin:0 auto; box-shadow:0 4px 20px rgba(38,50,45,.18); }
+            #pdfPreviewPaper .card { padding:8px !important; margin-bottom:8px !important; border-radius:8px !important; box-shadow:none !important; overflow:visible !important; }
+            #pdfPreviewPaper .stat-grid { grid-template-columns:1fr 1fr !important; gap:6px !important; }
+            #pdfPreviewPaper .stat-card { padding:7px !important; }
+            #pdfPreviewPaper .profit-box { padding:10px !important; font-size:16px !important; }
+            #pdfPreviewPaper .section-title { font-size:13px !important; padding:6px !important; margin:10px 0 6px !important; }
+            #pdfPreviewPaper table { width:100% !important; table-layout:auto !important; font-size:10px !important; border-collapse:collapse !important; }
+            #pdfPreviewPaper th, #pdfPreviewPaper td { padding:5px 3px !important; word-break:break-word !important; line-height:1.35 !important; }
+            #pdfPreviewPaper th:last-child, #pdfPreviewPaper td:last-child { min-width:54px; white-space:nowrap; }
+        </style>
         <div style="position:sticky;top:0;z-index:2;background:#f3f5f2;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #d8e1d6;">
             <button class="btn btn-success" onclick="savePdfFromPreview()">儲存 / 分享 PDF</button>
             <button class="btn btn-danger" onclick="closePdfPreview()">關閉預覽</button>
@@ -778,8 +789,8 @@ function showPdfPreview(month){
         <div style="padding:10px;color:#728078;font-size:13px;line-height:1.5;background:#fff7e8;border-bottom:1px solid #f0d6a8;">
             請先確認報表內容，確認後按「儲存 / 分享 PDF」。iPhone 會跳出分享面板，可選「儲存到檔案」或分享到其他 App。
         </div>
-        <div style="flex:1;overflow:auto;padding:12px;">
-            <div id="pdfPreviewPaper" style="width:794px;min-height:1123px;background:#fff;color:#26322d;padding:16px;margin:0 auto;box-shadow:0 4px 20px rgba(38,50,45,.18);">
+        <div style="flex:1;overflow:auto;padding:8px;">
+            <div id="pdfPreviewPaper">
                 <h2 style="text-align:center;margin:8px 0 14px;">Wazi ${month} 報表</h2>
                 ${document.getElementById('repArea').innerHTML}
                 ${document.getElementById('souffleArea').innerHTML}
@@ -798,11 +809,12 @@ async function savePdfFromPreview(){
     try{
         showSaveToast('正在產生 PDF...');
         await loadPdfGenerator();
+        const captureWidth = Math.ceil(source.scrollWidth || source.getBoundingClientRect().width || 390);
         const blob = await html2pdf().set({
             margin: 8,
             filename: pendingPdfReport.filename,
             image: {type: 'jpeg', quality: 0.98},
-            html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794, scrollY: 0},
+            html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: captureWidth, scrollY: 0},
             jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'},
             pagebreak: {mode: ['css', 'legacy']}
         }).from(source).outputPdf('blob');
