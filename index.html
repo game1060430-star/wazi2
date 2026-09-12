@@ -322,6 +322,14 @@ function saveStartForMonth(month, start){
 function saveLastSettledAsNextStart(c){
     const nextMonth = nextMonthValue(c.startMonth);
     saveStartForMonth(nextMonth || c.startMonth, startFromCfg(c));
+    return nextMonth || c.startMonth;
+}
+
+function applyStartToMonthlyData(month, start){
+    if(!month) return;
+    const data = JSON.parse(localStorage.getItem(KEY+'m_'+month)) || {staff:{}, bonus:{}};
+    data.start = start;
+    set('m_'+month, data);
 }
 
 function getSavedStartForMonth(month){
@@ -679,6 +687,7 @@ function exportReportPdf(){
         .toolbar { position: sticky; top: 0; z-index: 10; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f3f5f2; padding-bottom: 10px; }
         button { border: 0; border-radius: 10px; padding: 12px; font-weight: bold; color: white; background: #3c7f99; font-size: 16px; }
         button.close { background: #6c757d; }
+        .pdf-note { background: #fff7e8; border: 1px solid #f0d6a8; color: #7a4b12; border-radius: 10px; padding: 10px; margin-bottom: 10px; font-size: 13px; line-height: 1.5; }
         h2 { text-align: center; margin: 8px 0 14px; }
         .card { background: white; border: 1px solid #e2e8e1; border-radius: 10px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(38,50,45,0.06); }
         .section-title { border-left: 4px solid #4f7d5f; background: #eef4ec; padding: 6px 8px; font-size: 15px; border-radius: 6px; }
@@ -706,17 +715,22 @@ function exportReportPdf(){
 <body>
     <div class="wrap">
         <div class="toolbar">
-            <button onclick="window.print()">下載 / 儲存 PDF</button>
+            <button onclick="savePdfOnPhone()">分享 / 儲存 PDF</button>
             <button class="close" onclick="window.close()">關閉</button>
         </div>
+        <div class="pdf-note">iPhone 請按「分享 / 儲存 PDF」，進入列印畫面後按分享鍵，選「儲存到檔案」或分享到其他 App。</div>
         <h2>Wazi ${month} 報表</h2>
         ${reportHtml}
     </div>
+    <script>
+        function savePdfOnPhone(){
+            alert('接下來會開啟列印畫面。iPhone 請在列印畫面按分享鍵，選「儲存到檔案」或分享到其他 App。');
+            window.print();
+        }
+    <\/script>
 </body>
 </html>`);
     preview.document.close();
-    preview.onload = () => preview.print();
-    setTimeout(() => { try { preview.print(); } catch(e) {} }, 500);
 }
 
 function printCurrentReport(){
@@ -1079,19 +1093,20 @@ function saveSettings(){
         startMonth:startMonth
     });
     set('cfg', c);
-    saveLastSettledAsNextStart(c);
+    const baseMonth = syncMonthlyBasesFromSettings(c);
     alert('設定已儲存');
     applyPaymentVisibility();
     calcDaily();
+    if(document.getElementById('mMonth') && baseMonth) document.getElementById('mMonth').value = baseMonth;
     loadMonthly();
-    syncMonthlyBasesFromSettings(c);
     if(document.getElementById('rMonth')?.value) genFullReport();
 }
 
 function syncMonthlyBasesFromSettings(c = cfg()){
-    const month = document.getElementById('mMonth')?.value;
-    if(!month) return;
-    if(document.getElementById('mMonth')) saveMonthlyData(true);
+    const baseMonth = saveLastSettledAsNextStart(c);
+    const start = startFromCfg(c);
+    applyStartToMonthlyData(baseMonth, start);
+    return baseMonth;
 }
 function backupData(){ const d={}; Object.keys(localStorage).forEach(k=>{ if(k.startsWith(KEY)) d[k]=localStorage.getItem(k); }); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`Wazi_Backup.json`; a.click(); }
 function importData(event) {
