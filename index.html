@@ -503,7 +503,7 @@ function calcDaily(){
     const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '');
     if(!hasInput) { document.getElementById('cSumDisplay').innerText = `$ 0`; return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
-    const cash = cashMode === 'direct' ? val('cashDirect') : (cashRaw - c.petty);
+    const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, c);
     const online = c.showOnlinePay ? val('pOnline') : 0;
     const scan = c.showScanPay ? val('pScan') : 0;
     const result = cash + online + scan;
@@ -531,10 +531,14 @@ function applyPaymentVisibility(){
 function getDailyRevenue(d, c){
     const val = (v)=>parseFloat(v)||0;
     const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
-    const cash = d.cashMode === 'direct' ? val(d.cashDirect) : (cashOnly - c.petty);
+    const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, c);
     const online = c.showOnlinePay ? val(d.pOnline) : 0;
     const scan = c.showScanPay ? val(d.pScan) : 0;
     return {cash, online, scan, total: cash + online + scan};
+}
+
+function getNetCashRevenue(cashAmount, c){
+    return (parseFloat(cashAmount) || 0) - num(c.petty);
 }
 
 function showSaveToast(message){
