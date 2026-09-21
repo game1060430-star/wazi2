@@ -575,9 +575,21 @@ function getVendorEntry(entryKey, entryValue, vendors){
         .filter(v => entryKey === v.name || entryKey.startsWith(v.name+'_'))
         .sort((a,b) => b.name.length - a.name.length)[0];
     if(!vendor) return null;
-    if(entryKey === vendor.name) return {name:vendor.name, amount:num(entryValue)};
+    if(entryKey === vendor.name) return {name:vendor.name, amount:vendorAmountValue(entryValue)};
     const price = num(entryKey.slice(entryKey.lastIndexOf('_') + 1));
     return {name:vendor.name, amount:num(entryValue) * price};
+}
+
+function vendorAmountValue(value){
+    if(Array.isArray(value)) return value.reduce((sum, item) => sum + num(item), 0);
+    return num(value);
+}
+
+function getVendorAmountLines(d, vendorName){
+    const value = d.vs?.[vendorName];
+    if(Array.isArray(value)) return value.length ? value : [''];
+    if(value !== undefined && value !== null && value !== '') return [value];
+    return [''];
 }
 
 function genFullReport(){
@@ -857,7 +869,18 @@ function loadDaily(){
     dailyMisc = d.misc || [];
     let html = ""; const vendors = get('vendors');
     vendors.forEach(v => {
-        if(v.type==='金額'){ html += `<div class="v-row"><b>${v.name}</b><input type="number" inputmode="numeric" pattern="[0-9]*" class="vd-input" data-name="${v.name}" value="${d.vs[v.name]||''}" oninput="scheduleDailyAutosave()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`; }
+        if(v.type==='金額'){
+            const lines = getVendorAmountLines(d, v.name);
+            const vendorKey = encodeURIComponent(v.name);
+            html += `<div class="v-row vendor-amount-card" data-vendor-key="${vendorKey}">
+                <b>${v.name}</b>
+                <div class="vendor-amount-lines">
+                    ${lines.map((amount, index) => vendorAmountLineHtml(v.name, amount, index)).join('')}
+                </div>
+                <button type="button" class="btn btn-primary" onclick="addVendorAmountLine('${vendorKey}')">＋ 加一張報價單</button>
+                <div class="report-note" style="text-align:right;">小計：<b class="vendor-amount-total">$${Math.round(vendorAmountValue(lines)).toLocaleString()}</b></div>
+            </div>`;
+        }
         else {
             const itemInputs = (v.items||[]).map(it => {
                 const key = v.name+'_'+it.n+'_'+it.p;
@@ -868,6 +891,48 @@ function loadDaily(){
     });
     document.getElementById('vDailyArea').innerHTML = html; renderMiscPayers(); renderMiscExpenses(); setupNumericKeyboards(); calcDaily();
     isLoadingDaily = false;
+}
+
+function escapeHtml(value){
+    return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[char]));
+}
+
+function vendorAmountLineHtml(vendorName, amount = '', index = 0){
+    return `<div class="vendor-amount-line" style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:6px;align-items:center;">
+        <input type="number" inputmode="decimal" class="vd-input" data-name="${escapeHtml(vendorName)}" value="${escapeHtml(amount ?? '')}" oninput="updateVendorAmountTotal(this); scheduleDailyAutosave()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;" placeholder="第 ${index + 1} 張金額">
+        <button type="button" class="btn btn-danger" onclick="removeVendorAmountLine(this)" style="width:auto;min-width:44px;padding:8px;margin:0;">刪</button>
+    </div>`;
+}
+
+function addVendorAmountLine(vendorKey){
+    const vendorName = decodeURIComponent(vendorKey);
+    const card = Array.from(document.querySelectorAll('.vendor-amount-card')).find(el => el.dataset.vendorKey === vendorKey);
+    if(!card) return;
+    const wrap = card.querySelector('.vendor-amount-lines');
+    wrap.insertAdjacentHTML('beforeend', vendorAmountLineHtml(vendorName, '', wrap.querySelectorAll('.vd-input').length));
+    setupNumericKeyboards();
+    updateVendorAmountTotal(wrap.querySelector('.vd-input:last-child'));
+    scheduleDailyAutosave();
+}
+
+function removeVendorAmountLine(button){
+    const card = button.closest('.vendor-amount-card');
+    const lines = card.querySelectorAll('.vendor-amount-line');
+    if(lines.length <= 1){
+        lines[0].querySelector('input').value = '';
+    }else{
+        button.closest('.vendor-amount-line').remove();
+    }
+    updateVendorAmountTotal(card);
+    scheduleDailyAutosave();
+}
+
+function updateVendorAmountTotal(el){
+    const card = el.closest?.('.vendor-amount-card') || el;
+    if(!card) return;
+    const total = Array.from(card.querySelectorAll('.vd-input')).reduce((sum, input) => sum + num(input.value), 0);
+    const totalEl = card.querySelector('.vendor-amount-total');
+    if(totalEl) totalEl.innerText = `$${Math.round(total).toLocaleString()}`;
 }
 function renderMiscPayers(){
     const select = document.getElementById('miscPayer');
@@ -945,7 +1010,15 @@ function deleteMiscExpense(index){
 }
 function saveDaily(isAuto = false){
     const date = document.getElementById('logDate').value, vs = {};
-    document.querySelectorAll('.vd-input').forEach(i => vs[i.dataset.name] = parseFloat(i.value)||0);
+    const vendorAmountGroups = {};
+    document.querySelectorAll('.vd-input').forEach(i => {
+        if(!vendorAmountGroups[i.dataset.name]) vendorAmountGroups[i.dataset.name] = [];
+        vendorAmountGroups[i.dataset.name].push(i.value);
+    });
+    Object.keys(vendorAmountGroups).forEach(name => {
+        const values = vendorAmountGroups[name].filter(value => value !== '').map(value => parseFloat(value)||0);
+        vs[name] = values.length > 1 ? values : (values[0] || 0);
+    });
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
@@ -1143,7 +1216,12 @@ function calcRecon(){
             let dayTotal = 0;
             for(let key in d.vs){
                 let owner = selectedNames.find(n => key === n || key.startsWith(n + '_'));
-                if(owner){ const p = key.split('_'), val = parseFloat(d.vs[key])||0, amt = (p.length===3?val*parseFloat(p[2]):val); vTots[owner]+=amt; dayTotal+=amt; totalAll+=amt; }
+                if(owner){
+                    const p = key.split('_');
+                    const val = vendorAmountValue(d.vs[key]);
+                    const amt = (p.length===3 ? val * parseFloat(p[2]) : val);
+                    vTots[owner]+=amt; dayTotal+=amt; totalAll+=amt;
+                }
             }
             if(dayTotal > 0) dayDets[i] = dayTotal;
         }
