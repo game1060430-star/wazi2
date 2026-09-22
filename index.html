@@ -135,6 +135,7 @@
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
                 <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
+            <div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
@@ -501,9 +502,10 @@ function calcDaily(){
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
     const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '');
-    if(!hasInput) { document.getElementById('cSumDisplay').innerText = `$ 0`; return; }
+    if(!hasInput) { document.getElementById('cSumDisplay').innerText = `$ 0`; scheduleDailyAutosave(); return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
-    const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, c);
+    const petty = val('dailyPetty');
+    const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, petty);
     const online = c.showOnlinePay ? val('pOnline') : 0;
     const scan = c.showScanPay ? val('pScan') : 0;
     const result = cash + online + scan;
@@ -531,14 +533,33 @@ function applyPaymentVisibility(){
 function getDailyRevenue(d, c){
     const val = (v)=>parseFloat(v)||0;
     const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
-    const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, c);
+    const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty);
     const online = c.showOnlinePay ? val(d.pOnline) : 0;
     const scan = c.showScanPay ? val(d.pScan) : 0;
     return {cash, online, scan, total: cash + online + scan};
 }
 
-function getNetCashRevenue(cashAmount, c){
-    return (parseFloat(cashAmount) || 0) - num(c.petty);
+function getNetCashRevenue(cashAmount, pettyAmount){
+    return (parseFloat(cashAmount) || 0) - num(pettyAmount);
+}
+
+function getEffectivePettyForDate(date, dailyData = null){
+    const ownPetty = dailyData?.petty;
+    if(ownPetty !== undefined && ownPetty !== null && ownPetty !== '') return num(ownPetty);
+    let latestDate = '';
+    let latestPetty = null;
+    for(let i = 0; i < localStorage.length; i++){
+        const key = localStorage.key(i);
+        if(!key.startsWith(KEY+'d_')) continue;
+        const day = key.slice((KEY+'d_').length);
+        if(day >= date || day <= latestDate) continue;
+        const data = JSON.parse(localStorage.getItem(key)) || {};
+        if(data.petty !== undefined && data.petty !== null && data.petty !== ''){
+            latestDate = day;
+            latestPetty = num(data.petty);
+        }
+    }
+    return latestPetty !== null ? latestPetty : num(cfg().petty);
 }
 
 function showSaveToast(message){
@@ -587,8 +608,11 @@ function vendorAmountValue(value){
 
 function getVendorAmountLines(d, vendorName){
     const value = d.vs?.[vendorName];
-    if(Array.isArray(value)) return value.length ? value : [''];
-    if(value !== undefined && value !== null && value !== '') return [value];
+    if(Array.isArray(value)){
+        const values = value.filter(item => item !== undefined && item !== null && item !== '' && num(item) !== 0);
+        return values.length ? values : [''];
+    }
+    if(value !== undefined && value !== null && value !== '' && num(value) !== 0) return [value];
     return [''];
 }
 
@@ -864,6 +888,7 @@ function loadDaily(){
     clearTimeout(scheduleDailyAutosave.timer);
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan','cashDirect'].forEach(f=>document.getElementById(f).value=d[f]||'');
+    document.getElementById('dailyPetty').value = getEffectivePettyForDate(date, d);
     setCashMode(d.cashMode || (d.cashDirect ? 'direct' : 'scale'));
     applyPaymentVisibility();
     dailyMisc = d.misc || [];
@@ -1017,11 +1042,11 @@ function saveDaily(isAuto = false){
     });
     Object.keys(vendorAmountGroups).forEach(name => {
         const values = vendorAmountGroups[name].filter(value => value !== '').map(value => parseFloat(value)||0);
-        vs[name] = values.length > 1 ? values : (values[0] || 0);
+        if(values.length > 0) vs[name] = values.length > 1 ? values : values[0];
     });
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
-    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
+    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
     showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
