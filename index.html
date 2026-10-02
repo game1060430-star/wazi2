@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.10</title>
+    <title>Wazi 管理系統 V23.11</title>
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
         :root {
@@ -135,7 +135,7 @@
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
                 <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
-            <div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
+            <div id="extraPaymentArea" class="grid"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
@@ -180,13 +180,13 @@
         <div class="date-picker-wrap"><input type="month" id="mMonth" onchange="loadMonthly()"></div>
         <div id="mStartSummary" class="card report-note"></div>
         <div class="card">
-            <h4 class="section-title">抄表結束度數</h4>
+            <h4 class="section-title">水電瓦斯費用</h4><button type="button" class="btn btn-info" onclick="applyCurrentBillingSettings()">套用設定頁的記帳方式至本月</button>
             <div class="grid">
                 <div class="form-group"><label>總表110</label><input type="number" inputmode="decimal" id="me110" oninput="showLiveCalc('e110')"><div id="hint_e110" class="calc-hint"></div></div>
                 <div class="form-group"><label>總表220</label><input type="number" inputmode="decimal" id="me220" oninput="showLiveCalc('e220')"><div id="hint_e220" class="calc-hint"></div></div>
                 <div class="form-group"><label>水費抄表</label><input type="number" inputmode="decimal" id="mw" oninput="showLiveCalc('w')"><div id="hint_w" class="calc-hint"></div></div>
                 <div class="form-group"><label>瓦斯抄表</label><input type="number" inputmode="decimal" id="mg" oninput="showLiveCalc('g')"><div id="hint_g" class="calc-hint"></div></div>
-                <div class="form-group"><label>房租</label><input type="number" inputmode="decimal" id="mrent"></div>
+                <div class="form-group"><label>電費金額</label><input type="number" inputmode="decimal" min="0" id="melectricAmount"></div><div class="form-group"><label>水費金額</label><input type="number" inputmode="decimal" min="0" id="mwaterAmount"></div><div class="form-group"><label>瓦斯費金額</label><input type="number" inputmode="decimal" min="0" id="mgasAmount"></div><div class="form-group"><label>房租</label><input type="number" inputmode="decimal" id="mrent"></div>
                 <div class="form-group"><label>公攤額</label><input type="number" inputmode="decimal" id="mpub"></div>
                 <div class="form-group"><label>稅金基數</label><input type="number" inputmode="decimal" id="mtaxb"></div>
             </div>
@@ -222,7 +222,11 @@
                 <label class="check-row"><input type="checkbox" id="sShowOnlinePay">顯示網路收入</label>
                 <label class="check-row"><input type="checkbox" id="sShowScanPay">顯示掃碼支付</label>
             </div>
-            <h4 class="section-title">上次結算度數</h4>
+            <h4 class="section-title">記帳方式</h4><div class="grid">
+<div class="form-group"><label>電費記帳方式</label><select id="sElectricMode"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div class="form-group"><label>水費記帳方式</label><select id="sWaterMode"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div class="form-group"><label>瓦斯費記帳方式</label><select id="sGasMode"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><label class="check-row"><input type="checkbox" id="sHasPublic">有公攤費</label></div>
+<h4 class="section-title">網路收入名稱</h4><div class="grid"><div class="form-group"><label>原網路收入名稱</label><input id="sOnlineName" placeholder="例如：Uber Eats"></div><div class="form-group"><label>原掃碼支付名稱</label><input id="sScanName" placeholder="例如：LINE Pay"></div></div>
+<div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
+<h4 class="section-title">上次結算度數</h4>
             <div class="grid">
                 <div class="form-group"><label>上次結算月份</label><input type="month" id="sStartMonth"></div>
                 <div class="form-group"><label>總110</label><input type="number" id="si110"></div>
@@ -457,7 +461,11 @@ function getFixedExpenseRows(m, c){
         detail:`設定金額 ${money(item.amount)}，本月採用 ${money(m.fixed?.[item.id] ?? item.amount)}`,
         amount:num(m.fixed?.[item.id] ?? item.amount)
     }));
-    return baseRows.concat(customRows);
+    const modes=monthlyModes(m);
+    for(const [key,label] of [['electric','電費'],['water','水費'],['gas','瓦斯']]){
+        if(modes[key]==='amount'){ const row=baseRows.find(r=>r.label===label); row.detail='直接輸入金額'; row.amount=num(m.utilityAmounts?.[key]); }
+    }
+    return baseRows.filter(r=>r.label!=='公攤' || m.hasPublic!==false).concat(customRows);
 }
 
 function getSouffleExpenseRows(m, c){
@@ -469,8 +477,8 @@ function getSouffleExpenseRows(m, c){
     const se220Use = Math.max(0, num(m.se220) - num(start.is220));
     const subElectricUse = se110Use + se220Use;
     const waterUse = Math.max(0, num(m.w) - num(start.iw));
-    const waterAmount = waterUse * num(rates.uw);
-    const pubAmount = num(m.pub) * publicRate;
+    const waterAmount = monthlyModes(m).water==='amount' ? num(m.utilityAmounts?.water) : waterUse * num(rates.uw);
+    const pubAmount = m.hasPublic===false ? 0 : num(m.pub) * publicRate;
     const legacySouffle = m.souffle || {};
     const souffle = {
         rent: legacySouffle.rent ?? c.subleaseRent ?? c.souffleRent ?? 15000,
@@ -479,7 +487,7 @@ function getSouffleExpenseRows(m, c){
     return [
         {label:'租金', detail:'本月舒芙蕾租金', amount:num(souffle.rent)},
         {label:'電費', detail:`舒芙蕾分表 ${se110Use.toFixed(1)} + ${se220Use.toFixed(1)} = ${subElectricUse.toFixed(1)} 度 × 店裡電單價 ${unitMoney(rates.ue)}`, amount:subElectricUse * num(rates.ue)},
-        {label:'水費', detail:`同主報表水費：${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterAmount},
+        {label:'水費', detail:monthlyModes(m).water==='amount'?'同主報表水費：直接輸入金額':`同主報表水費：${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterAmount},
         {label:'公攤費', detail:`同主報表公攤：${money(m.pub)} × ${publicRate}`, amount:pubAmount},
         {label:'營業額稅金', detail:`${money(souffle.revenue)} × ${taxRate}`, amount:num(souffle.revenue) * taxRate}
     ];
@@ -496,19 +504,69 @@ function switchTab(id){
     if(id==='settings') renderSettings();
 }
 
+
+function paymentItems(c = cfg()) { return Array.isArray(c.paymentItems) ? c.paymentItems : []; }
+function addPaymentSetting(){
+ const box=document.getElementById('paymentSettings');
+ const row=document.createElement('div'); row.className='form-group';
+ const input=document.createElement('input'); input.className='payment-name'; input.dataset.id='pay_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); input.placeholder='例如：街口支付、foodpanda';
+ const label=document.createElement('label'); label.textContent='收入項目名稱'; row.append(label,input); box.append(row); input.focus();
+}
+function renderPaymentSettings(c){
+ document.getElementById('paymentSettings').innerHTML=paymentItems(c).map(p=>`<div class="form-group"><label>收入項目名稱（留空可停用，歷史金額保留）</label><input class="payment-name" data-id="${escapeHtml(p.id)}" value="${escapeHtml(p.name)}"></div>`).join('');
+}
+function renderExtraPayments(d){
+ const items=paymentItems(); const saved=d.payments||{};
+ document.getElementById('extraPaymentArea').innerHTML=items.filter(p=>p.enabled!==false || num(saved[p.id])).map(p=>`<div class="form-group"><label>${escapeHtml(p.name)}${p.enabled===false?'（已停用）':''}</label><input type="number" inputmode="decimal" class="extra-payment" data-id="${escapeHtml(p.id)}" value="${escapeHtml(saved[p.id] ?? '')}" oninput="calcDaily()"></div>`).join('');
+}
+function collectExtraPayments(){
+ const date=document.getElementById('logDate').value;
+ const old=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
+ const result={...(old.payments||{})};
+ document.querySelectorAll('.extra-payment').forEach(i=>result[i.dataset.id]=i.value); return result;
+}
+function extraPaymentTotal(d){ return Object.values(d.payments||{}).reduce((sum,v)=>sum+num(v),0); }
+function applyCurrentBillingSettings(){
+ const month=document.getElementById('mMonth').value, c=cfg();
+ const m=collectMonthlyData();
+ m.utilityModes={electric:c.electricMode||'meter',water:c.waterMode||'meter',gas:c.gasMode||'meter'};
+ m.hasPublic=c.hasPublic!==false;
+ set('m_'+month,m); loadMonthly(); refreshReportIfSameMonth(month); showSaveToast('本月記帳方式已更新');
+}
+function monthlyModes(m){ return m.utilityModes || {electric:'meter',water:'meter',gas:'meter'}; }
+function applyMonthlyModes(m,c){
+ const modes=m.utilityModes || (['e110','e220','w','g'].some(k=>Object.prototype.hasOwnProperty.call(m,k)) ? monthlyModes(m) : {electric:c.electricMode||'meter',water:c.waterMode||'meter',gas:c.gasMode||'meter'});
+ document.getElementById('monthly').dataset.utilityModes=JSON.stringify(modes);
+ for(const [key,fields] of Object.entries({electric:['me110','me220'],water:['mw'],gas:['mg']})){
+  fields.forEach(id=>document.getElementById(id).parentElement.style.display=modes[key]==='amount'?'none':'block');
+  const input=document.getElementById('m'+key+'Amount'); input.parentElement.style.display=modes[key]==='amount'?'block':'none'; input.value=m.utilityAmounts?.[key] ?? '';
+ }
+ const enabled=m.hasPublic ?? (Object.prototype.hasOwnProperty.call(m,'pub') ? true : c.hasPublic!==false);
+ document.getElementById('monthly').dataset.hasPublic=String(enabled);
+ document.getElementById('mpub').parentElement.style.display=enabled?'block':'none';
+}
+function paymentReportItems(month,c){
+ const items=paymentItems(c).map(p=>({...p}));
+ for(let day=1;day<=31;day++){
+  const d=JSON.parse(localStorage.getItem(KEY+'d_'+month+'-'+String(day).padStart(2,'0')))||{};
+  for(const id of Object.keys(d.payments||{})) if(!items.some(p=>p.id===id))items.push({id,name:d.paymentNames?.[id]||'其他收入'});
+ }
+ return items.filter(p=>p.enabled!==false || Array.from({length:31},(_,i)=>JSON.parse(localStorage.getItem(KEY+'d_'+month+'-'+String(i+1).padStart(2,'0')))||{}).some(d=>num(d.payments?.[p.id])));
+}
+
 function calcDaily(){
     const c = cfg(); 
     const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
-    const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '');
+    const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '') || Array.from(document.querySelectorAll('.extra-payment')).some(i=>i.value!=='');
     if(!hasInput) { document.getElementById('cSumDisplay').innerText = `$ 0`; scheduleDailyAutosave(); return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const petty = val('dailyPetty');
     const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, petty);
     const online = c.showOnlinePay ? val('pOnline') : 0;
     const scan = c.showScanPay ? val('pScan') : 0;
-    const result = cash + online + scan;
+    const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()});
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(result).toLocaleString()}`;
     scheduleDailyAutosave();
 }
@@ -526,6 +584,8 @@ function applyPaymentVisibility(){
     const c = cfg();
     const online = document.getElementById('onlinePayGroup');
     const scan = document.getElementById('scanPayGroup');
+    if(online) online.querySelector('label').textContent=c.onlineName || '網路收入';
+    if(scan) scan.querySelector('label').textContent=c.scanName || '掃碼支付';
     if(online) online.style.display = c.showOnlinePay ? 'block' : 'none';
     if(scan) scan.style.display = c.showScanPay ? 'block' : 'none';
 }
@@ -536,7 +596,7 @@ function getDailyRevenue(d, c){
     const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty);
     const online = c.showOnlinePay ? val(d.pOnline) : 0;
     const scan = c.showScanPay ? val(d.pScan) : 0;
-    return {cash, online, scan, total: cash + online + scan};
+    return {cash, online, scan, total: cash + online + scan + extraPaymentTotal(d)};
 }
 
 function getNetCashRevenue(cashAmount, pettyAmount){
@@ -622,16 +682,19 @@ function genFullReport(){
     const c = cfg();
     const activeVendors = get('vendors');
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
-    const revenueHead = `<th>日</th><th>現金</th>${c.showOnlinePay ? '<th>網路</th>' : ''}${c.showScanPay ? '<th>掃碼</th>' : ''}<th>總額</th>`;
-    const revenueColspan = 3 + (c.showOnlinePay ? 1 : 0) + (c.showScanPay ? 1 : 0);
+    const reportPayments=paymentReportItems(month,c), paymentTotals={};
+    reportPayments.forEach(p=>paymentTotals[p.id]=0);
+    const revenueHead = `<th>日</th><th>現金</th>${c.showOnlinePay ? `<th>${escapeHtml(c.onlineName||'網路收入')}</th>` : ''}${c.showScanPay ? `<th>${escapeHtml(c.scanName||'掃碼支付')}</th>` : ''}${reportPayments.map(p=>`<th>${escapeHtml(p.name)}</th>`).join('')}<th>總額</th>`;
+    const revenueColspan = 3 + reportPayments.length + (c.showOnlinePay ? 1 : 0) + (c.showScanPay ? 1 : 0);
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         if(d){
-            const hasData = [d.c1000, d.c100, d.w50, d.w10, d.w5, d.cashDirect, d.pOnline, d.pScan].some(v=>v!='' && v!=null);
+            const hasData = [d.c1000, d.c100, d.w50, d.w10, d.w5, d.cashDirect, d.pOnline, d.pScan].some(v=>v!='' && v!=null) || Object.values(d.payments||{}).some(v=>v!=='' && v!=null);
             if(hasData){
                 const rev = getDailyRevenue(d, c);
-                dayRows += `<tr><td>${i}</td><td>$${Math.round(rev.cash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(rev.online).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(rev.scan).toLocaleString()}</td>` : ''}<td>$${Math.round(rev.total).toLocaleString()}</td></tr>`;
+                reportPayments.forEach(p=>paymentTotals[p.id]+=num(d.payments?.[p.id]));
+                dayRows += `<tr><td>${i}</td><td>$${Math.round(rev.cash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(rev.online).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(rev.scan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(d.payments?.[p.id])}</td>`).join('')}<td>$${Math.round(rev.total).toLocaleString()}</td></tr>`;
                 tCash += rev.cash; tOnline += rev.online; tScan += rev.scan; tDays++;
             }
             if(d.vs) for(let k in d.vs){
@@ -648,7 +711,7 @@ function genFullReport(){
             });
         }
     }
-    const tRev = tCash + tOnline + tScan;
+    const tRev = tCash + tOnline + tScan + Object.values(paymentTotals).reduce((sum,v)=>sum+v,0);
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
     let tFixed = 0;
     const fixedRows = getFixedExpenseRows(m, c).map(f=>{
@@ -669,7 +732,7 @@ function genFullReport(){
             <div class="stat-card">平均日營業額<br><b>$${tDays>0?Math.round(tRev/tDays).toLocaleString():0}</b></div>
         </div>
         <h4 class="section-title">📅 每日營收</h4>
-        <div class="card report-card" style="padding:0"><table><tr>${revenueHead}</tr>${dayRows || `<tr><td colspan="${revenueColspan}">本月尚無每日記帳資料</td></tr>`}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(tOnline).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(tScan).toLocaleString()}</td>` : ''}<td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
+        <div class="card report-card" style="padding:0"><table><tr>${revenueHead}</tr>${dayRows || `<tr><td colspan="${revenueColspan}">本月尚無每日記帳資料</td></tr>`}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(tOnline).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(tScan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(paymentTotals[p.id])}</td>`).join('')}<td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
         <h4 class="section-title">📦 支出與人事</h4>
         <div class="card report-card" style="padding:0"><table><tr><th colspan="4" style="text-align:left;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="5">無廠商進貨</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="2" style="text-align:left;">固定支出</th><th colspan="2" style="text-align:left;">計算方式</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">人事成本</th><th>合計</th></tr>${staffHtml || '<tr><td colspan="5">無人事資料</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
         <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff).toLocaleString()}</div>`;
@@ -888,6 +951,7 @@ function loadDaily(){
     clearTimeout(scheduleDailyAutosave.timer);
     const date = document.getElementById('logDate').value, d = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
     ['c1000','c100','w50','w10','w5','pOnline','pScan','cashDirect'].forEach(f=>document.getElementById(f).value=d[f]||'');
+    renderExtraPayments(d);
     document.getElementById('dailyPetty').value = getEffectivePettyForDate(date, d);
     setCashMode(d.cashMode || (d.cashDirect ? 'direct' : 'scale'));
     applyPaymentVisibility();
@@ -1046,7 +1110,7 @@ function saveDaily(isAuto = false){
     });
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
-    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, vs: vs, misc: dailyMisc });
+    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
     showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
@@ -1058,6 +1122,7 @@ function loadMonthly(){
     renderMonthlyStartSummary(month, getMonthlyData(month), c);
     document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k] ?? '');
+    applyMonthlyModes(m,c);
     renderMonthlyFixedExpenses(m);
     renderUnpaidMiscSettlement(month);
     toggleSubleaseMonthly(c);
@@ -1150,6 +1215,9 @@ function collectMonthlyData(){
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.m-fixed').forEach(i=>fixed[i.dataset.id]=parseFloat(i.value)||0);
     return {
+        utilityModes:JSON.parse(document.getElementById('monthly').dataset.utilityModes),
+        utilityAmounts:Object.fromEntries(['electric','water','gas'].map(k=>[k,num(document.getElementById('m'+k+'Amount').value)])),
+        hasPublic:document.getElementById('monthly').dataset.hasPublic!=='false',
         staff:s,
         bonus:b,
         fixed:fixed,
@@ -1266,6 +1334,11 @@ function manualUpdateVendorTotal(){
 function renderSettings(){
     const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicRate:'publicRate', sTaxRate:'taxRate', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
+    for(const key of ['Electric','Water','Gas']) document.getElementById('s'+key+'Mode').value=c[key.toLowerCase()+'Mode']||'meter';
+    document.getElementById('sHasPublic').checked=c.hasPublic!==false;
+    document.getElementById('sOnlineName').value=c.onlineName||'網路收入';
+    document.getElementById('sScanName').value=c.scanName||'掃碼支付';
+    renderPaymentSettings(c);
     if(document.getElementById('sStartMonth')) document.getElementById('sStartMonth').value = c.startMonth || document.getElementById('mMonth')?.value || currentMonthValue();
     if(document.getElementById('sShowOnlinePay')) document.getElementById('sShowOnlinePay').checked = c.showOnlinePay !== false;
     if(document.getElementById('sShowScanPay')) document.getElementById('sShowScanPay').checked = c.showScanPay !== false;
@@ -1282,11 +1355,15 @@ function saveSettings(){
     const c = cfg();
     const startMonth = document.getElementById('sStartMonth').value || c.startMonth || currentMonthValue();
     Object.assign(c, {
+        electricMode:document.getElementById('sElectricMode').value, waterMode:document.getElementById('sWaterMode').value, gasMode:document.getElementById('sGasMode').value,
+        hasPublic:document.getElementById('sHasPublic').checked,
+        onlineName:document.getElementById('sOnlineName').value.trim()||'網路收入', scanName:document.getElementById('sScanName').value.trim()||'掃碼支付',
+        paymentItems:Array.from(document.querySelectorAll('.payment-name')).map(i=>({id:i.dataset.id,name:i.value.trim()||paymentItems(c).find(p=>p.id===i.dataset.id)?.name||'其他收入',enabled:!!i.value.trim()})),
         ue:parseFloat(document.getElementById('upElec').value)||0,
         uw:parseFloat(document.getElementById('upWater').value)||0,
         ug:parseFloat(document.getElementById('upGas').value)||0,
         petty:parseFloat(document.getElementById('sPetty').value)||0,
-        publicRate:parseFloat(document.getElementById('sPublicRate').value)||1,
+        publicRate:num(document.getElementById('sPublicRate').value),
         taxRate:parseFloat(document.getElementById('sTaxRate').value)||0,
         showOnlinePay:!!document.getElementById('sShowOnlinePay')?.checked,
         showScanPay:!!document.getElementById('sShowScanPay')?.checked,
@@ -1304,8 +1381,7 @@ function saveSettings(){
     set('cfg', c);
     const baseMonth = syncMonthlyBasesFromSettings(c);
     alert('設定已儲存');
-    applyPaymentVisibility();
-    calcDaily();
+    loadDaily();
     if(document.getElementById('mMonth') && baseMonth) document.getElementById('mMonth').value = baseMonth;
     loadMonthly();
     if(document.getElementById('rMonth')?.value) genFullReport();
