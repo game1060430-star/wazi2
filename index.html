@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.12</title>
+    <title>Wazi 管理系統 V23.13</title>
     <style>
+        .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
+        .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
+        .recon-toolbar button {width:auto;padding:9px;}
+        .recon-row {display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
+        .vendor-terms {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;}
+        @media(max-width:640px){.recon-layout{grid-template-columns:1fr;}#reconVendorList{display:flex;flex-wrap:wrap;gap:10px;}.recon-row input[type=number]{max-width:110px;}}
         .feature-box {padding:10px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px;}
         .settlement-info {border-top:1px solid var(--line); margin-top:10px; padding-top:10px; font-size:13px; line-height:1.6;}
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
@@ -112,7 +118,7 @@
     </div>
 
     <div id="daily" class="tab-content active">
-        <div class="date-picker-wrap"><input type="date" id="logDate" onchange="loadDaily()"></div>
+        <div class="date-picker-wrap"><input type="date" id="logDate" onchange="changeDailyDate()"></div>
         <div class="card">
             <h4 style="margin:0 0 10px;">💰 今日收銀</h4>
             <div class="mode-row">
@@ -131,7 +137,7 @@
             </div>
             </div>
             <div id="cashDirectArea" style="display:none;">
-                <div class="form-group"><label>現金營業額</label><input type="number" inputmode="decimal" id="cashDirect" oninput="calcDaily()"></div>
+                <div class="form-group"><label>收銀餘額（含零用金）</label><input type="number" inputmode="decimal" id="cashDirect" oninput="calcDaily()"></div>
             </div>
             <div class="grid">
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
@@ -141,7 +147,7 @@
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
-        <div id="vDailyArea" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+        <div id="vendorCashNote" class="report-note" style="display:none"></div><div id="vDailyArea" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
         <div class="card">
             <h4 style="margin:0 0 10px;">雜支</h4>
             <div class="grid">
@@ -159,15 +165,17 @@
 
     <div id="recon" class="tab-content">
         <div class="date-picker-wrap"><input type="month" id="reconMonth" onchange="renderRecon()"></div>
-        <div style="display: flex; gap: 10px;">
-            <div class="card" id="reconVendorList" style="width: 140px; font-size:12px; max-height: 400px; overflow-y: auto; padding:5px;"></div>
+        <div class="recon-layout">
+            <div class="card" id="reconVendorList" style="font-size:13px;padding:10px;"></div>
             <div id="reconDetailArea" style="flex: 1;"></div>
         </div>
         <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6;"></div>
         <div id="reconAction" class="card" style="display:none;">
-            <h4 style="margin:0 0 5px;">➕ 手動補錄 (單選廠商時可用)</h4>
-            <div class="grid"><input type="number" inputmode="decimal" id="addDay" placeholder="日期(號)"><input type="number" inputmode="decimal" id="addAmt" placeholder="金額"></div>
-            <button class="btn btn-primary" onclick="manualUpdateVendorTotal()">確認修改</button>
+            <h4 style="margin:0 0 10px">新增明細</h4><div class="grid">
+            <div class="form-group"><label>日期</label><input type="date" id="addReconDate"></div>
+            <div class="form-group"><label>廠商</label><select id="addReconVendor"></select></div>
+            <div class="form-group"><label>金額</label><input type="number" min="0" inputmode="decimal" id="addAmt"></div></div>
+            <button class="btn btn-primary" onclick="addReconEntry()">＋ 新增</button>
         </div>
     </div>
 
@@ -258,14 +266,14 @@
             <h4 class="section-title">廠商</h4>
             <div id="listVendor"></div>
             <div class="grid">
-                <div class="form-group"><label>廠商名稱</label><input type="text" id="newVendorName"></div>
+                <details id="newVendorPanel"><summary>＋ 新增廠商</summary><div class="form-group"><label>廠商名稱</label><input type="text" id="newVendorName"></div><div class="form-group"><label>結帳方式</label><select id="newVendorCycle"><option value="period">累積結帳</option><option value="daily">日結</option></select></div><div class="form-group"><label>付款來源</label><select id="newVendorSource"><option value="bank">帳戶付款</option><option value="cash">收銀現金</option></select></div>
                 <div class="form-group"><label>模式</label><select id="newVendorType" onchange="toggleVendorItemFields()"><option value="金額">金額</option><option value="品項">品項</option></select></div>
             </div>
             <div id="vendorItemsFields" class="form-group" style="display:none;">
                 <label>品項與單價，每行一筆，例如：吐司,35</label>
                 <textarea id="newVendorItems" placeholder="吐司,35&#10;漢堡,65"></textarea>
             </div>
-            <button class="btn btn-primary" onclick="addVendor()">+ 新增廠商</button>
+            <button class="btn btn-primary" onclick="addVendor()">儲存廠商</button></details>
         </div>
         <h4 class="section-title">🛠 數據維護</h4>
         <div class="grid" style="grid-template-columns: 1fr 1fr;">
@@ -287,6 +295,7 @@ const cfg = ()=>Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(KE
 let dailyMisc = [];
 let editingMiscIndex = null;
 let isLoadingDaily = false;
+let loadedDailyDate = "";
 let isLoadingMonthly = false;
 const num = (v)=>parseFloat(v) || 0;
 const money = (v)=>`$${Math.round(num(v)).toLocaleString()}`;
@@ -484,6 +493,8 @@ function getSouffleExpenseRows(m, c){
 }
 
 function switchTab(id){
+    if(document.getElementById('daily').classList.contains('active')&&id!=='daily'){clearTimeout(scheduleDailyAutosave.timer);saveDaily(true);}
+    if(id==='recon')renderRecon();
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(id).classList.add('active');
@@ -563,25 +574,28 @@ function paymentReportItems(month,c){
  return items.filter(p=>p.enabled!==false || Array.from({length:31},(_,i)=>JSON.parse(localStorage.getItem(KEY+'d_'+month+'-'+String(i+1).padStart(2,'0')))||{}).some(d=>num(d.payments?.[p.id])));
 }
 
-function calcDaily(){
+function calcDaily(skipAutosave = false){
+    if(isLoadingDaily)return;
     const c = cfg(); 
     const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
     const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '') || Object.values(collectExtraPayments()).some(v=>v!==''&&v!=null);
     const oldNote=document.getElementById('inactivePaymentNote'); if(oldNote){oldNote.style.display='none';oldNote.textContent='';}
-    if(!hasInput) { document.getElementById('cSumDisplay').innerText = `$ 0`; scheduleDailyAutosave(); return; }
+    if(!hasInput) { const cashNote=document.getElementById('vendorCashNote');if(cashNote)cashNote.style.display='none';document.getElementById('cSumDisplay').innerText = `$ 0`; if(!skipAutosave)scheduleDailyAutosave(); return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const petty = val('dailyPetty');
     const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, petty);
     const online = val('pOnline');
     const scan = val('pScan');
-    const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()});
+    const cashPaid=vendorCashPaid(vendorDraft());
+    const cashNote=document.getElementById('vendorCashNote');if(cashNote){cashNote.style.display=cashPaid?'block':'none';cashNote.textContent='廠商現金付款加回 '+money(cashPaid);}
+    const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()}) + cashPaid;
     const activeIds=new Set(paymentItems(c).filter(p=>p.enabled!==false).map(p=>p.id));
     const hiddenTotal=(c.showOnlinePay?0:online)+(c.showScanPay?0:scan)+Object.entries(collectExtraPayments()).reduce((sum,[id,value])=>sum+(activeIds.has(id)?0:num(value)),0);
     const note=document.getElementById('inactivePaymentNote'); if(note){note.style.display=hiddenTotal?'block':'none';note.textContent=hiddenTotal?'本日已停用收入項目的歷史金額 '+money(hiddenTotal)+' 仍計入營業額':'';}
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(result).toLocaleString()}`;
-    scheduleDailyAutosave();
+    if(!skipAutosave)scheduleDailyAutosave();
 }
 
 function setCashMode(mode){
@@ -603,10 +617,10 @@ function applyPaymentVisibility(){
     if(scan) scan.style.display = c.showScanPay ? 'block' : 'none';
 }
 
-function getDailyRevenue(d, c){
+function getDailyRevenue(d, c, date=d.date||''){
     const val = (v)=>parseFloat(v)||0;
     const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
-    const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty);
+    const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty) + vendorCashPaid(d,date);
     const online = val(d.pOnline);
     const scan = val(d.pScan);
     return {cash, online, scan, total: cash + online + scan + extraPaymentTotal(d)};
@@ -706,7 +720,7 @@ function genFullReport(){
         if(d){
             const hasData = [d.c1000, d.c100, d.w50, d.w10, d.w5, d.cashDirect, d.pOnline, d.pScan].some(v=>v!='' && v!=null) || Object.values(d.payments||{}).some(v=>v!=='' && v!=null);
             if(hasData){
-                const rev = getDailyRevenue(d, c);
+                const rev = getDailyRevenue(d, c, date);
                 reportPayments.forEach(p=>paymentTotals[p.id]+=num(d.payments?.[p.id]));
                 dayRows += `<tr><td>${i}</td><td>$${Math.round(rev.cash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(rev.online).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(rev.scan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(d.payments?.[p.id])}</td>`).join('')}<td>$${Math.round(rev.total).toLocaleString()}</td></tr>`;
                 tCash += rev.cash; tOnline += rev.online; tScan += rev.scan; tDays++;
@@ -966,29 +980,62 @@ async function savePdfFromPreview(){
 function vendorDailyAmount(d,name){
  return Object.entries(d.vs||{}).reduce((sum,[key,value])=>{const entry=getVendorEntry(key,value,get('vendors'));return sum+(entry?.name===name?entry.amount:0);},0);
 }
+function vendorRule(d,name){return d.vendorBilling?.[name]||{cycle:'period',source:'bank'};}
+function currentVendorRules(existing={}){
+ const rules={...(existing.vendorBilling||{})};get('vendors').forEach(v=>{if(!rules[v.name])rules[v.name]=vendorDailyAmount(existing,v.name)!==0?{cycle:'period',source:'bank'}:{cycle:v.cycle||'period',source:v.source||'bank'};});return rules;
+}
+function collectVendorValues(){
+ const vs={},groups={};document.querySelectorAll('.vd-input').forEach(i=>(groups[i.dataset.name]??=[]).push(i.value));
+ for(const [name,values] of Object.entries(groups)){const amounts=values.filter(v=>v!=='').map(num);if(amounts.length)vs[name]=amounts.length===1?amounts[0]:amounts;}
+ document.querySelectorAll('.vit-qty').forEach(i=>vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p]=num(i.value));return vs;
+}
+function vendorDraft(){const date=document.getElementById('logDate').value,old=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};return {...old,date,vs:collectVendorValues(),vendorBilling:currentVendorRules(old)};}
+function vendorPeriodAmount(name,after,through,draft=null){
+ let total=0;const dates=Object.keys(localStorage).filter(k=>k.startsWith(KEY+'d_')).map(k=>k.slice((KEY+'d_').length));if(draft&&!dates.includes(through))dates.push(through);
+ for(const date of dates){if(date<=after||date>through)continue;const d=draft&&date===through?draft:JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};if(vendorRule(d,name).cycle!=='daily')total+=vendorDailyAmount(d,name);}
+ return total;
+}
 function vendorBalance(name,asOf){
- const settlements=get('vendorSettlements').filter(x=>x.name===name&&x.date<=asOf).sort((a,b)=>a.date.localeCompare(b.date));
- const last=settlements.at(-1)?.date||'';
- let unpaid=0;
- Object.keys(localStorage).filter(k=>k.startsWith(KEY+'d_')).forEach(k=>{const date=k.slice((KEY+'d_').length); if(date>last&&date<=asOf)unpaid+=vendorDailyAmount(JSON.parse(localStorage.getItem(k))||{},name);});
- return {last,unpaid};
+ const dates=get('vendorSettlements').filter(x=>x.name===name&&x.date<=asOf).map(x=>x.date).sort(),last=dates.at(-1)||'';
+ return {last,unpaid:vendorPeriodAmount(name,last,asOf)};
 }
-function settlementHtml(name,date){
- const b=vendorBalance(name,date), checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);
- return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">已結清至這一天</label><div class="vendor-balance">${balanceText(b,date,checked)}</div></div>`;
+function vendorCashPaid(d,date=d.date||''){
+ let amount=0;for(const [name,rule] of Object.entries(d.vendorBilling||{})){if(rule.cycle==='daily'&&rule.source==='cash')amount+=vendorDailyAmount(d,name);}
+ for(const entry of get('vendorSettlements').filter(x=>x.date===date&&x.source==='cash')){
+  const after=get('vendorSettlements').filter(x=>x.name===entry.name&&x.date<date).map(x=>x.date).sort().at(-1)||'';
+  amount+=vendorPeriodAmount(entry.name,after,date,d);
+ }
+ return amount;
 }
-function balanceText(b,date,checked){return `截至 ${escapeHtml(date)} 未結清：<b>${money(b.unpaid)}</b><br>${b.last?'上次結清日：'+escapeHtml(b.last):'尚無結清紀錄'}${checked?'<br>包含上次結清後至本日的所有進貨':''}`;}
+function updateVendorTerms(index,key,value){
+ clearTimeout(scheduleDailyAutosave.timer);saveDaily(true);
+ const vendors=get('vendors'),v=vendors[index];if(!v)return;v[key]=value;set('vendors',vendors);
+ const date=document.getElementById('logDate').value,d=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
+ d.vendorBilling={...(d.vendorBilling||{}),[v.name]:{cycle:v.cycle||'period',source:v.source||'bank'}};set('d_'+date,d);
+ const entries=get('vendorSettlements');entries.forEach(e=>{if(e.name===v.name&&e.date===date)e.source=v.source||'bank';});set('vendorSettlements',entries);
+ loadDaily();showSaveToast('已套用目前記帳日');
+}
+function settlementHtml(name,date,d){
+ const rule=vendorRule({...d,vendorBilling:currentVendorRules(d)},name),cash=rule.source==='cash';
+ if(rule.cycle==='daily')return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}" data-daily="1"><span>日結 · ${cash?'收銀現金':'帳戶付款'}</span></div>`;
+ const b=vendorBalance(name,date),checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);
+ return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">結清 <small>· ${cash?'收銀現金':'帳戶付款'}</small></label><div class="vendor-balance">未結清 <b>${money(b.unpaid)}</b></div></div>`;
+}
 function updateVendorBalances(){
  const date=document.getElementById('logDate').value;
- document.querySelectorAll('[data-settlement-name]').forEach(el=>{const name=el.dataset.settlementName,b=vendorBalance(name,date);const checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);el.querySelector('.vendor-balance').innerHTML=balanceText(b,date,checked);el.querySelector('.vendor-settled').checked=checked;});
+ document.querySelectorAll('[data-settlement-name]').forEach(el=>{if(el.dataset.daily)return;const name=el.dataset.settlementName,b=vendorBalance(name,date);el.querySelector('.vendor-balance').innerHTML='未結清 <b>'+money(b.unpaid)+'</b>';el.querySelector('.vendor-settled').checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);});
 }
 function toggleVendorSettlement(input){
  const date=document.getElementById('logDate').value,name=input.dataset.name,checked=input.checked;
- clearTimeout(scheduleDailyAutosave.timer); saveDaily(true);
- const entries=get('vendorSettlements').filter(x=>!(x.name===name&&x.date===date));
- if(checked)entries.push({name,date});set('vendorSettlements',entries);updateVendorBalances();showSaveToast(checked?'已結清至 '+date:'已取消本日結清');
+ clearTimeout(scheduleDailyAutosave.timer);saveDaily(true);const d=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
+ const entries=get('vendorSettlements').filter(x=>!(x.name===name&&x.date===date));if(checked)entries.push({name,date,source:vendorRule(d,name).source});
+ set('vendorSettlements',entries);updateVendorBalances();calcDaily();showSaveToast(checked?'已結清':'已取消結清');
 }
 
+function changeDailyDate(){
+ const input=document.getElementById('logDate'),next=input.value;
+ if(loadedDailyDate&&loadedDailyDate!==next){clearTimeout(scheduleDailyAutosave.timer);input.value=loadedDailyDate;saveDaily(true);input.value=next;}loadDaily();
+}
 function loadDaily(){
     isLoadingDaily = true;
     clearTimeout(scheduleDailyAutosave.timer);
@@ -1009,9 +1056,9 @@ function loadDaily(){
                 <div class="vendor-amount-lines">
                     ${lines.map((amount, index) => vendorAmountLineHtml(v.name, amount, index)).join('')}
                 </div>
-                <button type="button" class="btn btn-primary" onclick="addVendorAmountLine('${vendorKey}')">＋ 加一張報價單</button>
+                <button type="button" class="btn btn-primary" onclick="addVendorAmountLine('${vendorKey}')">＋ 一筆</button>
                 <div class="report-note" style="text-align:right;">小計：<b class="vendor-amount-total">$${Math.round(vendorAmountValue(lines)).toLocaleString()}</b></div>
-                ${settlementHtml(v.name,date)}
+                ${settlementHtml(v.name,date,d)}
             </div>`;
         }
         else {
@@ -1019,11 +1066,11 @@ function loadDaily(){
                 const key = v.name+'_'+it.n+'_'+it.p;
                 return `<div><label>${it.n}</label><input type="number" inputmode="numeric" pattern="[0-9]*" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}" oninput="scheduleDailyAutosave()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`;
             }).join('');
-            html += `<div class="v-row"><b>${escapeHtml(v.name)}</b><div class="vendor-item-grid">${itemInputs}</div>${settlementHtml(v.name,date)}</div>`;
+            html += `<div class="v-row vendor-amount-card" data-vendor-key="${encodeURIComponent(v.name)}"><b>${escapeHtml(v.name)}</b><div class="vendor-item-grid">${itemInputs}</div><details ${d.vs?.[v.name]?'open':''}><summary>其他金額</summary><div class="vendor-amount-lines">${getVendorAmountLines(d,v.name).map((amount,index)=>vendorAmountLineHtml(v.name,amount,index)).join('')}</div><button type="button" class="btn btn-primary" onclick="addVendorAmountLine('${encodeURIComponent(v.name)}')">＋ 金額</button></details>${settlementHtml(v.name,date,d)}</div>`;
         }
     });
-    document.getElementById('vDailyArea').innerHTML = html; renderMiscPayers(); renderMiscExpenses(); setupNumericKeyboards(); calcDaily();
-    isLoadingDaily = false;
+    document.getElementById('vDailyArea').innerHTML = html; renderMiscPayers(); renderMiscExpenses(); setupNumericKeyboards();
+    isLoadingDaily = false;loadedDailyDate=date;calcDaily(true);
 }
 
 function escapeHtml(value){
@@ -1154,8 +1201,12 @@ function saveDaily(isAuto = false){
     });
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
-    set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
+    const old=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
+    set('d_'+date, {...old,date,vendorBilling:currentVendorRules(old),c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
     updateVendorBalances();
+    const paid=vendorCashPaid(JSON.parse(localStorage.getItem(KEY+'d_'+date)),date);
+    const note=document.getElementById('vendorCashNote');if(note){note.style.display=paid?'block':'none';note.textContent='廠商現金付款加回 '+money(paid);}
+    calcDaily(true);
     showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
@@ -1340,45 +1391,70 @@ function showLiveCalc(type){
     if(hint) hint.innerText = `用量: ${diff.toFixed(1)} × ${unitMoney(rate)} | 預估: $${Math.round(amt)}`;
     scheduleMonthlyAutosave();
 }
+let reconRows=[];
+function reconRowId(date,key,index){return encodeURIComponent(JSON.stringify([date,key,index]));}
+function buildReconRows(month,names){
+ const rows=[],vendors=get('vendors');for(let day=1;day<=31;day++){
+  const date=month+'-'+String(day).padStart(2,'0'),d=JSON.parse(localStorage.getItem(KEY+'d_'+date));if(!d)continue;
+  for(const [key,value] of Object.entries(d.vs||{})){
+   const entry=getVendorEntry(key,value,vendors);if(!entry||!names.includes(entry.name))continue;
+   const item=key!==entry.name,price=item?num(key.slice(key.lastIndexOf('_')+1)):1;
+   (Array.isArray(value)?value:[value]).forEach((raw,index)=>{if(raw===''||raw==null||num(raw)===0)return;rows.push({id:reconRowId(date,key,index),date,key,index,name:entry.name,label:item?key.slice(entry.name.length+1,key.lastIndexOf('_')):'金額',item,price,raw:num(raw),amount:num(raw)*price});});
+  }
+ }return rows;
+}
 function renderRecon(){
-    const vs = get('vendors');
-    document.getElementById('reconVendorList').innerHTML = vs.map(v => `<label style="display:block; padding:8px; border-bottom:1px solid #eee;"><input type="checkbox" class="recon-chk" value="${v.name}" onchange="calcRecon()"> ${v.name}</label>`).join('');
+ const selected=Array.from(document.querySelectorAll('.recon-chk:checked')).map(x=>x.value),vendors=get('vendors');
+ document.getElementById('reconVendorList').innerHTML=vendors.map(v=>`<label class="check-row"><input type="checkbox" class="recon-chk" value="${escapeHtml(v.name)}" ${selected.includes(v.name)?'checked':''} onchange="calcRecon()">${escapeHtml(v.name)}</label>`).join('')||'請先新增廠商';calcRecon();
 }
 function calcRecon(){
-    const chks = document.querySelectorAll('.recon-chk:checked'), month = document.getElementById('reconMonth').value;
-    if(chks.length === 0){ document.getElementById('reconDetailArea').innerHTML = "請選廠商"; document.getElementById('reconSummaryArea').style.display = 'none'; document.getElementById('reconAction').style.display = 'none'; return; }
-    let selectedNames = Array.from(chks).map(c => c.value), vTots = {}, dayDets = {}, totalAll = 0;
-    selectedNames.forEach(n => vTots[n] = 0);
-    for(let i=1; i<=31; i++){
-        const d = JSON.parse(localStorage.getItem(KEY+'d_'+month+'-'+String(i).padStart(2,'0')));
-        if(d && d.vs){
-            let dayTotal = 0;
-            for(let key in d.vs){
-                let owner = selectedNames.find(n => key === n || key.startsWith(n + '_'));
-                if(owner){
-                    const p = key.split('_');
-                    const val = vendorAmountValue(d.vs[key]);
-                    const amt = (p.length===3 ? val * parseFloat(p[2]) : val);
-                    vTots[owner]+=amt; dayTotal+=amt; totalAll+=amt;
-                }
-            }
-            if(dayTotal > 0) dayDets[i] = dayTotal;
-        }
-    }
-    document.getElementById('reconDetailArea').innerHTML = `<table><tr><th>日</th><th>金額</th></tr>${Object.keys(dayDets).map(day => `<tr><td>${day}號</td><td>$${Math.round(dayDets[day]).toLocaleString()}</td></tr>`).join('')}</table>`;
-    document.getElementById('reconSummaryArea').innerHTML = `<b>廠商小計</b>` + selectedNames.map(n => `<div style="display:flex;justify-content:space-between;"><span>${n}</span><span>$${Math.round(vTots[n]).toLocaleString()}</span></div>`).join('') + `<hr><b>總計：$${Math.round(totalAll).toLocaleString()}</b>`;
-    const parts=month.split('-').map(Number), lastDay=new Date(parts[0],parts[1],0).getDate(), cutoff=month+'-'+String(lastDay).padStart(2,'0');
-    document.getElementById('reconSummaryArea').innerHTML += '<hr><b>截至本月底未結清（含前月）</b>'+selectedNames.map(name=>{const b=vendorBalance(name,cutoff);return `<div class="list-row"><span>${escapeHtml(name)}<br><small>${b.last?'上次結清：'+b.last:'尚無結清紀錄'}</small></span><b>${money(b.unpaid)}</b></div>`;}).join('');
-    document.getElementById('reconSummaryArea').style.display = 'block';
-    document.getElementById('reconAction').style.display = (selectedNames.length === 1) ? 'block' : 'none';
+ const names=Array.from(document.querySelectorAll('.recon-chk:checked')).map(x=>x.value),month=document.getElementById('reconMonth').value;
+ if(!names.length){document.getElementById('reconDetailArea').innerHTML='選擇廠商';document.getElementById('reconSummaryArea').style.display='none';document.getElementById('reconAction').style.display='none';reconRows=[];return;}
+ reconRows=buildReconRows(month,names);
+ document.getElementById('reconDetailArea').innerHTML=`<div class="card"><div class="recon-toolbar"><label><input type="checkbox" id="reconSelectAll" onchange="selectAllRecon(this.checked)">全選</label><b id="reconSelectedTotal">已選 0 筆 · $0</b></div><div class="recon-toolbar"><button class="btn btn-primary" onclick="editSelectedRecon()">修改</button><button class="btn btn-danger" onclick="deleteSelectedRecon()">刪除</button><button class="btn btn-info" onclick="undoReconChange()">復原</button></div><div id="reconEditHint" class="report-note" style="display:none">金額或數量修改後，按儲存。</div><button id="reconSaveEdits" class="btn btn-success" style="display:none" onclick="saveSelectedRecon()">儲存修改</button>${reconRows.map(r=>`<div class="recon-row"><input type="checkbox" class="recon-row-check" data-id="${r.id}" onchange="updateReconSelection()"><span>${r.date.slice(5)} ${escapeHtml(r.name)}<br><small>${escapeHtml(r.label)}${r.item?' · '+r.raw+' × '+money(r.price):''}</small><input type="number" class="recon-edit-value" data-id="${r.id}" value="${r.raw}" min="0" inputmode="decimal" style="display:none"></span><b>${money(r.amount)}</b></div>`).join('')||'<div class="report-note">本月沒有明細</div>'}</div>`;
+ const cutoff=month+'-'+String(new Date(...[...month.split('-').map(Number),0]).getDate()).padStart(2,'0');
+ document.getElementById('reconSummaryArea').innerHTML='<b>未結清（含前月）</b>'+names.map(name=>`<div class="list-row"><span>${escapeHtml(name)}</span><b>${money(vendorBalance(name,cutoff).unpaid)}</b></div>`).join('');document.getElementById('reconSummaryArea').style.display='block';
+ document.getElementById('reconAction').style.display='block';document.getElementById('addReconVendor').innerHTML=names.map(name=>`<option>${escapeHtml(name)}</option>`).join('');document.getElementById('addReconDate').value=month+'-01';
 }
-function manualUpdateVendorTotal(){
-    const d = document.getElementById('addDay').value, a = document.getElementById('addAmt').value, vn = document.querySelector('.recon-chk:checked').value;
-    const date = document.getElementById('reconMonth').value + '-' + String(d).padStart(2,'0');
-    const data = JSON.parse(localStorage.getItem(KEY+'d_'+date)) || {vs:{}};
-    for(let k in data.vs) { if(k.startsWith(vn+'_')) delete data.vs[k]; }
-    data.vs[vn] = parseFloat(a); set('d_'+date, data); calcRecon(); alert('數據已修正');
+function selectedReconRows(){const ids=new Set(Array.from(document.querySelectorAll('.recon-row-check:checked')).map(x=>x.dataset.id));return reconRows.filter(r=>ids.has(r.id));}
+function updateReconSelection(){
+ const rows=selectedReconRows();document.getElementById('reconSelectedTotal').textContent='已選 '+rows.length+' 筆 · '+money(rows.reduce((sum,r)=>sum+r.amount,0));
+ const all=document.getElementById('reconSelectAll');if(all){all.checked=rows.length>0&&rows.length===reconRows.length;all.indeterminate=rows.length>0&&rows.length<reconRows.length;}
 }
+function selectAllRecon(checked){document.querySelectorAll('.recon-row-check').forEach(x=>x.checked=checked);updateReconSelection();}
+function editSelectedRecon(){
+ const rows=selectedReconRows();if(!rows.length){showSaveToast('請先勾選明細');return;}const ids=new Set(rows.map(r=>r.id));
+ document.querySelectorAll('.recon-edit-value').forEach(x=>x.style.display=ids.has(x.dataset.id)?'block':'none');document.getElementById('reconSaveEdits').style.display='block';document.getElementById('reconEditHint').style.display='block';
+}
+function applyReconChange(rows,transform){
+ clearTimeout(scheduleDailyAutosave.timer);
+ const before={},after={};for(const row of rows){if(!before[row.date])before[row.date]=localStorage.getItem(KEY+'d_'+row.date);}
+ const data=Object.fromEntries(Object.entries(before).map(([date,raw])=>[date,JSON.parse(raw)||{vs:{}}]));
+ transform(data);for(const [date,d] of Object.entries(data)){after[date]=JSON.stringify(d);localStorage.setItem(KEY+'d_'+date,after[date]);}
+ const history=get('reconHistory');history.push({before,after});set('reconHistory',history.slice(-20));calcRecon();loadDaily();if(document.getElementById('rMonth').value)genFullReport();
+}
+function setReconValue(d,row,value,remove=false){
+ const raw=d.vs?.[row.key];if(Array.isArray(raw)){if(remove)raw.splice(row.index,1);else raw[row.index]=value;if(!raw.length)delete d.vs[row.key];}
+ else if(remove)delete d.vs[row.key];else d.vs[row.key]=value;
+}
+function saveSelectedRecon(){
+ const inputs=Array.from(document.querySelectorAll('.recon-edit-value')).filter(x=>x.style.display==='block'),changes=inputs.map(i=>({row:reconRows.find(r=>r.id===i.dataset.id),value:Number(i.value)}));
+ if(!changes.length||changes.some(x=>!Number.isFinite(x.value)||x.value<0)){showSaveToast('請輸入有效金額或數量');return;}
+ applyReconChange(changes.map(x=>x.row),data=>changes.forEach(x=>setReconValue(data[x.row.date],x.row,x.value)));showSaveToast('已修改');
+}
+function deleteSelectedRecon(){const rows=selectedReconRows();if(!rows.length){showSaveToast('請先勾選明細');return;}applyReconChange(rows,data=>[...rows].sort((a,b)=>b.index-a.index).forEach(r=>setReconValue(data[r.date],r,0,true)));showSaveToast('已刪除，可按復原');}
+function undoReconChange(){
+ const history=get('reconHistory'),last=history.at(-1);if(!last){showSaveToast('沒有可復原的變更');return;}
+ if(Object.entries(last.after).some(([date,raw])=>localStorage.getItem(KEY+'d_'+date)!==raw)){showSaveToast('資料已有後續修改，無法直接復原');return;}
+ for(const [date,raw] of Object.entries(last.before)){if(raw===null)localStorage.removeItem(KEY+'d_'+date);else localStorage.setItem(KEY+'d_'+date,raw);}
+ history.pop();set('reconHistory',history);calcRecon();loadDaily();genFullReport();showSaveToast('已復原');
+}
+function addReconEntry(){
+ const date=document.getElementById('addReconDate').value,name=document.getElementById('addReconVendor').value,raw=document.getElementById('addAmt').value,amount=Number(raw);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date.slice(0,7)!==document.getElementById('reconMonth').value||!get('vendors').some(v=>v.name===name)||raw===''||!Number.isFinite(amount)||amount<=0){showSaveToast('請選本月日期並輸入正確金額');return;}
+ applyReconChange([{date}],data=>{const d=data[date],rules=currentVendorRules(d);d.vs=d.vs||{};const old=d.vs[name];d.vs[name]=old==null?amount:[...(Array.isArray(old)?old:[old]),amount];d.date=date;d.vendorBilling=rules;});document.getElementById('addAmt').value='';showSaveToast('已新增');
+}
+
 function renderSettings(){
     const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicRate:'publicRate', sTaxRate:'taxRate', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
@@ -1396,7 +1472,7 @@ function renderSettings(){
     if(document.getElementById('sSubleaseRent')) document.getElementById('sSubleaseRent').value = c.subleaseRent ?? 15000;
     renderFixedExpenseSettings();
     document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
-    document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div class="list-row"><span>${v.name} (${v.type}${v.type==='品項' ? ` / ${(v.items||[]).length}項` : ''})</span><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增廠商</div>';
+    document.getElementById('listVendor').innerHTML=get('vendors').map((v,i)=>`<div class="feature-box"><div class="list-row"><b>${escapeHtml(v.name)}</b><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div><div class="vendor-terms"><select aria-label="${escapeHtml(v.name)}結帳方式" onchange="updateVendorTerms(${i},'cycle',this.value)"><option value="period" ${v.cycle!=='daily'?'selected':''}>累積結帳</option><option value="daily" ${v.cycle==='daily'?'selected':''}>日結</option></select><select aria-label="${escapeHtml(v.name)}付款來源" onchange="updateVendorTerms(${i},'source',this.value)"><option value="bank" ${v.source!=='cash'?'selected':''}>帳戶付款</option><option value="cash" ${v.source==='cash'?'selected':''}>收銀現金</option></select></div></div>`).join('')||'<div class="report-note">尚未新增廠商</div>';
     toggleVendorItemFields();
     toggleSettingsFeatures();
 }
@@ -1527,7 +1603,8 @@ function addVendor(){
     const t = document.getElementById('newVendorType').value;
     if(!n){ alert('請輸入廠商名稱'); return; }
     const v = get('vendors');
-    const vendor = {name:n, type:t, items:[]};
+    if(v.some(item=>item.name===n)){showSaveToast('廠商名稱已存在');return;}
+    const vendor = {name:n, type:t, items:[],cycle:document.getElementById('newVendorCycle').value,source:document.getElementById('newVendorSource').value};
     if(t === '品項'){
         vendor.items = document.getElementById('newVendorItems').value.split('\n').map(line => {
             const parts = line.split(',').map(s => s.trim());
@@ -1540,6 +1617,7 @@ function addVendor(){
     document.getElementById('newVendorName').value = '';
     document.getElementById('newVendorType').value = '金額';
     document.getElementById('newVendorItems').value = '';
+    document.getElementById('newVendorPanel').open=false;
     refreshAfterPeopleOrVendorChange();
 }
 function purgeVendorHistory(vendorName){
