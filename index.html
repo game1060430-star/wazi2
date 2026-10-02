@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.14</title>
+    <title>Wazi 管理系統 V23.15</title>
     <style>
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -143,7 +143,7 @@
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
                 <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
-            <div id="paymentFeeNote" class="report-note" style="display:none"></div><div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
+            <div id="paymentFeeNote" class="report-note" style="display:none"></div><button type="button" id="applyPaymentFeesBtn" class="btn btn-primary" style="display:none" onclick="applyPaymentFeesToDay()">套用目前手續費率到本日</button><div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
@@ -229,9 +229,9 @@
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasPublic" onchange="toggleSettingsFeatures()">有公攤費</label><div id="sPublicOptions" class="form-group"><label>公攤費比例</label><input type="number" inputmode="decimal" id="sPublicRate"></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasTax" onchange="toggleSettingsFeatures()">有稅金</label><div id="sTaxOptions" class="form-group"><label>稅金比例</label><input type="number" inputmode="decimal" id="sTaxRate"></div></div>
 <h4 class="section-title">收入項目</h4>
-<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowOnlinePay" onchange="toggleSettingsFeatures()">啟用網路收入</label><div id="sOnlineNameOptions" class="form-group"><label>收入名稱</label><input id="sOnlineName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sOnlineFee"></div></div>
-<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowScanPay" onchange="toggleSettingsFeatures()">啟用掃碼支付</label><div id="sScanNameOptions" class="form-group"><label>收入名稱</label><input id="sScanName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sScanFee"></div></div>
-<div class="report-note">輸入交易金額，手續費另列支出。儲存費率會套用目前記帳日及之後的新紀錄。</div><div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowOnlinePay" onchange="toggleSettingsFeatures()">啟用網路收入</label><div id="sOnlineNameOptions" class="form-group"><label>收入名稱</label><input id="sOnlineName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sOnlineFee" oninput="savePaymentFeeSetting('pOnline',this.value)"></div></div>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowScanPay" onchange="toggleSettingsFeatures()">啟用掃碼支付</label><div id="sScanNameOptions" class="form-group"><label>收入名稱</label><input id="sScanName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sScanFee" oninput="savePaymentFeeSetting('pScan',this.value)"></div></div>
+<div class="report-note">輸入交易金額，手續費另列支出。費率輸入後自動儲存，套用目前記帳日及新紀錄。舊日期可在每日記帳按「套用目前手續費率到本日」。</div><div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
         </div>
         <div class="card">
@@ -512,10 +512,10 @@ function addPaymentSetting(){
  const row=document.createElement('div'); row.className='feature-box';
  const checkLabel=document.createElement('label'); checkLabel.className='check-row'; const check=document.createElement('input'); check.type='checkbox'; check.checked=true; check.className='payment-enabled'; checkLabel.append(check,document.createTextNode('啟用收入項目')); row.append(checkLabel);
  const input=document.createElement('input'); input.className='payment-name'; input.dataset.id='pay_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); input.placeholder='例如：街口支付、foodpanda';
- const label=document.createElement('label'); label.textContent='收入項目名稱'; const options=document.createElement('div'); options.className='payment-options'; options.append(label,input); const feeLabel=document.createElement('label');feeLabel.textContent='手續費率（%）';const fee=document.createElement('input');fee.type='number';fee.min=0;fee.max=100;fee.step='0.01';fee.value=0;fee.className='payment-fee';fee.dataset.id=input.dataset.id;options.append(feeLabel,fee); row.append(options); check.dataset.id=input.dataset.id; check.onchange=()=>togglePaymentOption(check); box.append(row); input.focus();
+ const label=document.createElement('label'); label.textContent='收入項目名稱'; const options=document.createElement('div'); options.className='payment-options'; options.append(label,input); const feeLabel=document.createElement('label');feeLabel.textContent='手續費率（%）';const fee=document.createElement('input');fee.type='number';fee.min=0;fee.max=100;fee.step='0.01';fee.value=0;fee.className='payment-fee';fee.dataset.id=input.dataset.id;fee.oninput=()=>{if(paymentItems().some(p=>p.id===fee.dataset.id))savePaymentFeeSetting(fee.dataset.id,fee.value);};options.append(feeLabel,fee); row.append(options); check.dataset.id=input.dataset.id; check.onchange=()=>togglePaymentOption(check); box.append(row); input.focus();
 }
 function renderPaymentSettings(c){
- document.getElementById('paymentSettings').innerHTML=paymentItems(c).map(p=>`<div class="feature-box"><label class="check-row"><input type="checkbox" class="payment-enabled" data-id="${escapeHtml(p.id)}" ${p.enabled!==false?'checked':''} onchange="togglePaymentOption(this)">啟用 ${escapeHtml(p.name)}</label><div class="form-group payment-options" style="display:${p.enabled!==false?'block':'none'}"><label>收入名稱</label><input class="payment-name" data-id="${escapeHtml(p.id)}" value="${escapeHtml(p.name)}"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" class="payment-fee" data-id="${escapeHtml(p.id)}" value="${feeRate(p.feeRate)}"></div></div>`).join('');
+ document.getElementById('paymentSettings').innerHTML=paymentItems(c).map(p=>`<div class="feature-box"><label class="check-row"><input type="checkbox" class="payment-enabled" data-id="${escapeHtml(p.id)}" ${p.enabled!==false?'checked':''} onchange="togglePaymentOption(this)">啟用 ${escapeHtml(p.name)}</label><div class="form-group payment-options" style="display:${p.enabled!==false?'block':'none'}"><label>收入名稱</label><input class="payment-name" data-id="${escapeHtml(p.id)}" value="${escapeHtml(p.name)}"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" class="payment-fee" data-id="${escapeHtml(p.id)}" value="${feeRate(p.feeRate)}" oninput="savePaymentFeeSetting(this.dataset.id,this.value)"></div></div>`).join('');
 }
 function togglePaymentOption(input){ input.closest('.feature-box').querySelector('.payment-options').style.display=input.checked?'block':'none'; }
 function toggleSettingsFeatures(){
@@ -547,9 +547,9 @@ function configuredPaymentFees(c=cfg()){
  return {pOnline:feeRate(c.onlineFeeRate),pScan:feeRate(c.scanFeeRate),...Object.fromEntries(paymentItems(c).map(p=>[p.id,feeRate(p.feeRate)]))};
 }
 function dailyPaymentFeeRates(d){
- if(d.paymentFeeRates)return {...d.paymentFeeRates};
  const hasHistory=[d.pOnline,d.pScan,...Object.values(d.payments||{})].some(v=>v!==''&&v!=null);
- return hasHistory?{}:configuredPaymentFees();
+ if(!hasHistory)return configuredPaymentFees();
+ return d.paymentFeeRates?{...d.paymentFeeRates}:{};
 }
 function paymentSettlement(d){
  const rates=d.paymentFeeRates||{},amounts={pOnline:num(d.pOnline),pScan:num(d.pScan),...(d.payments||{})};
@@ -559,7 +559,17 @@ function paymentSettlement(d){
 }
 function showPaymentSettlement(d){
  const result=paymentSettlement(d),note=document.getElementById('paymentFeeNote');
+ const current=configuredPaymentFees(),saved=d.paymentFeeRates||{},amounts={pOnline:d.pOnline,pScan:d.pScan,...(d.payments||{})};const differs=Object.entries(amounts).some(([id,value])=>num(value)&&feeRate(current[id])!==feeRate(saved[id]));document.getElementById('applyPaymentFeesBtn').style.display=differs?'block':'none';
  note.style.display=result.gross?'block':'none';note.textContent=`支付交易 $${result.gross.toLocaleString()} · 手續費 $${result.fees.toLocaleString()} · 預計入帳 $${result.net.toLocaleString()}`;
+}
+function applyPaymentFeesToDay(){
+ saveDaily(true);const date=document.getElementById('logDate').value,d=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
+ set('d_'+date,{...d,paymentFeeRates:configuredPaymentFees()});calcDaily(true);if(document.getElementById('rMonth').value)genFullReport();showSaveToast('本日手續費率已更新');
+}
+function savePaymentFeeSetting(id,value){
+ const c=cfg(),rate=feeRate(value);
+ if(id==='pOnline')c.onlineFeeRate=rate;else if(id==='pScan')c.scanFeeRate=rate;else c.paymentItems=paymentItems(c).map(p=>p.id===id?{...p,feeRate:rate}:p);
+ set('cfg',c);applyPaymentFeesToDay();
 }
 function applyCurrentBillingSettings(){
  const month=document.getElementById('mMonth').value, c=cfg();
@@ -601,7 +611,7 @@ function calcDaily(skipAutosave = false){
     const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
     const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '') || Object.values(collectExtraPayments()).some(v=>v!==''&&v!=null);
     const oldNote=document.getElementById('inactivePaymentNote'); if(oldNote){oldNote.style.display='none';oldNote.textContent='';}
-    if(!hasInput) { document.getElementById('paymentFeeNote').style.display='none'; const cashNote=document.getElementById('vendorCashNote');if(cashNote)cashNote.style.display='none';document.getElementById('cSumDisplay').innerText = `$ 0`; if(!skipAutosave)scheduleDailyAutosave(); return; }
+    if(!hasInput) { document.getElementById('paymentFeeNote').style.display='none';document.getElementById('applyPaymentFeesBtn').style.display='none'; const cashNote=document.getElementById('vendorCashNote');if(cashNote)cashNote.style.display='none';document.getElementById('cSumDisplay').innerText = `$ 0`; if(!skipAutosave)scheduleDailyAutosave(); return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const petty = val('dailyPetty');
     const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, petty);
