@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.13</title>
+    <title>Wazi 管理系統 V23.14</title>
     <style>
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -143,7 +143,7 @@
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
                 <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
-            <div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
+            <div id="paymentFeeNote" class="report-note" style="display:none"></div><div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
@@ -229,9 +229,9 @@
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasPublic" onchange="toggleSettingsFeatures()">有公攤費</label><div id="sPublicOptions" class="form-group"><label>公攤費比例</label><input type="number" inputmode="decimal" id="sPublicRate"></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasTax" onchange="toggleSettingsFeatures()">有稅金</label><div id="sTaxOptions" class="form-group"><label>稅金比例</label><input type="number" inputmode="decimal" id="sTaxRate"></div></div>
 <h4 class="section-title">收入項目</h4>
-<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowOnlinePay" onchange="toggleSettingsFeatures()">啟用網路收入</label><div id="sOnlineNameOptions" class="form-group"><label>收入名稱</label><input id="sOnlineName" placeholder="自行輸入名稱"></div></div>
-<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowScanPay" onchange="toggleSettingsFeatures()">啟用掃碼支付</label><div id="sScanNameOptions" class="form-group"><label>收入名稱</label><input id="sScanName" placeholder="自行輸入名稱"></div></div>
-<div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowOnlinePay" onchange="toggleSettingsFeatures()">啟用網路收入</label><div id="sOnlineNameOptions" class="form-group"><label>收入名稱</label><input id="sOnlineName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sOnlineFee"></div></div>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowScanPay" onchange="toggleSettingsFeatures()">啟用掃碼支付</label><div id="sScanNameOptions" class="form-group"><label>收入名稱</label><input id="sScanName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sScanFee"></div></div>
+<div class="report-note">輸入交易金額，手續費另列支出。儲存費率會套用目前記帳日及之後的新紀錄。</div><div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
         </div>
         <div class="card">
@@ -512,10 +512,10 @@ function addPaymentSetting(){
  const row=document.createElement('div'); row.className='feature-box';
  const checkLabel=document.createElement('label'); checkLabel.className='check-row'; const check=document.createElement('input'); check.type='checkbox'; check.checked=true; check.className='payment-enabled'; checkLabel.append(check,document.createTextNode('啟用收入項目')); row.append(checkLabel);
  const input=document.createElement('input'); input.className='payment-name'; input.dataset.id='pay_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); input.placeholder='例如：街口支付、foodpanda';
- const label=document.createElement('label'); label.textContent='收入項目名稱'; const options=document.createElement('div'); options.className='payment-options'; options.append(label,input); row.append(options); check.dataset.id=input.dataset.id; check.onchange=()=>togglePaymentOption(check); box.append(row); input.focus();
+ const label=document.createElement('label'); label.textContent='收入項目名稱'; const options=document.createElement('div'); options.className='payment-options'; options.append(label,input); const feeLabel=document.createElement('label');feeLabel.textContent='手續費率（%）';const fee=document.createElement('input');fee.type='number';fee.min=0;fee.max=100;fee.step='0.01';fee.value=0;fee.className='payment-fee';fee.dataset.id=input.dataset.id;options.append(feeLabel,fee); row.append(options); check.dataset.id=input.dataset.id; check.onchange=()=>togglePaymentOption(check); box.append(row); input.focus();
 }
 function renderPaymentSettings(c){
- document.getElementById('paymentSettings').innerHTML=paymentItems(c).map(p=>`<div class="feature-box"><label class="check-row"><input type="checkbox" class="payment-enabled" data-id="${escapeHtml(p.id)}" ${p.enabled!==false?'checked':''} onchange="togglePaymentOption(this)">啟用 ${escapeHtml(p.name)}</label><div class="form-group payment-options" style="display:${p.enabled!==false?'block':'none'}"><label>收入名稱</label><input class="payment-name" data-id="${escapeHtml(p.id)}" value="${escapeHtml(p.name)}"></div></div>`).join('');
+ document.getElementById('paymentSettings').innerHTML=paymentItems(c).map(p=>`<div class="feature-box"><label class="check-row"><input type="checkbox" class="payment-enabled" data-id="${escapeHtml(p.id)}" ${p.enabled!==false?'checked':''} onchange="togglePaymentOption(this)">啟用 ${escapeHtml(p.name)}</label><div class="form-group payment-options" style="display:${p.enabled!==false?'block':'none'}"><label>收入名稱</label><input class="payment-name" data-id="${escapeHtml(p.id)}" value="${escapeHtml(p.name)}"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" class="payment-fee" data-id="${escapeHtml(p.id)}" value="${feeRate(p.feeRate)}"></div></div>`).join('');
 }
 function togglePaymentOption(input){ input.closest('.feature-box').querySelector('.payment-options').style.display=input.checked?'block':'none'; }
 function toggleSettingsFeatures(){
@@ -542,6 +542,25 @@ function collectExtraPayments(){
  document.querySelectorAll('.extra-payment').forEach(i=>result[i.dataset.id]=i.value); return result;
 }
 function extraPaymentTotal(d){ return Object.values(d.payments||{}).reduce((sum,v)=>sum+num(v),0); }
+function feeRate(value){ return Math.min(100,Math.max(0,num(value))); }
+function configuredPaymentFees(c=cfg()){
+ return {pOnline:feeRate(c.onlineFeeRate),pScan:feeRate(c.scanFeeRate),...Object.fromEntries(paymentItems(c).map(p=>[p.id,feeRate(p.feeRate)]))};
+}
+function dailyPaymentFeeRates(d){
+ if(d.paymentFeeRates)return {...d.paymentFeeRates};
+ const hasHistory=[d.pOnline,d.pScan,...Object.values(d.payments||{})].some(v=>v!==''&&v!=null);
+ return hasHistory?{}:configuredPaymentFees();
+}
+function paymentSettlement(d){
+ const rates=d.paymentFeeRates||{},amounts={pOnline:num(d.pOnline),pScan:num(d.pScan),...(d.payments||{})};
+ let gross=0,fees=0;
+ for(const [id,value] of Object.entries(amounts)){const amount=num(value);gross+=amount;fees+=Math.round(amount*feeRate(rates[id]))/100;}
+ return {gross,fees:Math.round(fees*100)/100,net:Math.round((gross-fees)*100)/100};
+}
+function showPaymentSettlement(d){
+ const result=paymentSettlement(d),note=document.getElementById('paymentFeeNote');
+ note.style.display=result.gross?'block':'none';note.textContent=`支付交易 $${result.gross.toLocaleString()} · 手續費 $${result.fees.toLocaleString()} · 預計入帳 $${result.net.toLocaleString()}`;
+}
 function applyCurrentBillingSettings(){
  const month=document.getElementById('mMonth').value, c=cfg();
  const m=collectMonthlyData();
@@ -582,7 +601,7 @@ function calcDaily(skipAutosave = false){
     const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
     const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '') || Object.values(collectExtraPayments()).some(v=>v!==''&&v!=null);
     const oldNote=document.getElementById('inactivePaymentNote'); if(oldNote){oldNote.style.display='none';oldNote.textContent='';}
-    if(!hasInput) { const cashNote=document.getElementById('vendorCashNote');if(cashNote)cashNote.style.display='none';document.getElementById('cSumDisplay').innerText = `$ 0`; if(!skipAutosave)scheduleDailyAutosave(); return; }
+    if(!hasInput) { document.getElementById('paymentFeeNote').style.display='none'; const cashNote=document.getElementById('vendorCashNote');if(cashNote)cashNote.style.display='none';document.getElementById('cSumDisplay').innerText = `$ 0`; if(!skipAutosave)scheduleDailyAutosave(); return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const petty = val('dailyPetty');
     const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, petty);
@@ -590,6 +609,7 @@ function calcDaily(skipAutosave = false){
     const scan = val('pScan');
     const cashPaid=vendorCashPaid(vendorDraft());
     const cashNote=document.getElementById('vendorCashNote');if(cashNote){cashNote.style.display=cashPaid?'block':'none';cashNote.textContent='廠商現金付款加回 '+money(cashPaid);}
+    const feeDay=vendorDraft();showPaymentSettlement({...feeDay,pOnline:online,pScan:scan,payments:collectExtraPayments(),paymentFeeRates:dailyPaymentFeeRates(feeDay)});
     const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()}) + cashPaid;
     const activeIds=new Set(paymentItems(c).filter(p=>p.enabled!==false).map(p=>p.id));
     const hiddenTotal=(c.showOnlinePay?0:online)+(c.showScanPay?0:scan)+Object.entries(collectExtraPayments()).reduce((sum,[id,value])=>sum+(activeIds.has(id)?0:num(value)),0);
@@ -709,20 +729,20 @@ function genFullReport(){
     const c = cfg();
     for(let i=1;i<=31;i++){const d=JSON.parse(localStorage.getItem(KEY+'d_'+month+'-'+String(i).padStart(2,'0')))||{}; if(num(d.pOnline))c.showOnlinePay=true;if(num(d.pScan))c.showScanPay=true;}
     const activeVendors = get('vendors');
-    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
+    let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, tFees=0, tPaymentNet=0, vSum={}, miscRows="", tMisc=0;
     const reportPayments=paymentReportItems(month,c), paymentTotals={};
     reportPayments.forEach(p=>paymentTotals[p.id]=0);
-    const revenueHead = `<th>日</th><th>現金</th>${c.showOnlinePay ? `<th>${escapeHtml(c.onlineName||'網路收入')}</th>` : ''}${c.showScanPay ? `<th>${escapeHtml(c.scanName||'掃碼支付')}</th>` : ''}${reportPayments.map(p=>`<th>${escapeHtml(p.name)}</th>`).join('')}<th>總額</th>`;
-    const revenueColspan = 3 + reportPayments.length + (c.showOnlinePay ? 1 : 0) + (c.showScanPay ? 1 : 0);
+    const revenueHead = `<th>日</th><th>現金</th>${c.showOnlinePay ? `<th>${escapeHtml(c.onlineName||'網路收入')}</th>` : ''}${c.showScanPay ? `<th>${escapeHtml(c.scanName||'掃碼支付')}</th>` : ''}${reportPayments.map(p=>`<th>${escapeHtml(p.name)}</th>`).join('')}<th>總額</th><th>手續費</th><th>支付入帳</th>`;
+    const revenueColspan = 5 + reportPayments.length + (c.showOnlinePay ? 1 : 0) + (c.showScanPay ? 1 : 0);
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         if(d){
             const hasData = [d.c1000, d.c100, d.w50, d.w10, d.w5, d.cashDirect, d.pOnline, d.pScan].some(v=>v!='' && v!=null) || Object.values(d.payments||{}).some(v=>v!=='' && v!=null);
             if(hasData){
-                const rev = getDailyRevenue(d, c, date);
+                const rev = getDailyRevenue(d, c, date);const settlement=paymentSettlement(d);tFees+=settlement.fees;tPaymentNet+=settlement.net;
                 reportPayments.forEach(p=>paymentTotals[p.id]+=num(d.payments?.[p.id]));
-                dayRows += `<tr><td>${i}</td><td>$${Math.round(rev.cash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(rev.online).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(rev.scan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(d.payments?.[p.id])}</td>`).join('')}<td>$${Math.round(rev.total).toLocaleString()}</td></tr>`;
+                dayRows += `<tr><td>${i}</td><td>$${Math.round(rev.cash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(rev.online).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(rev.scan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(d.payments?.[p.id])}</td>`).join('')}<td>$${Math.round(rev.total).toLocaleString()}</td><td>$${settlement.fees.toLocaleString()}</td><td>$${settlement.net.toLocaleString()}</td></tr>`;
                 tCash += rev.cash; tOnline += rev.online; tScan += rev.scan; tDays++;
             }
             if(d.vs) for(let k in d.vs){
@@ -760,10 +780,10 @@ function genFullReport(){
             <div class="stat-card">平均日營業額<br><b>$${tDays>0?Math.round(tRev/tDays).toLocaleString():0}</b></div>
         </div>
         <h4 class="section-title">📅 每日營收</h4>
-        <div class="card report-card" style="padding:0"><table><tr>${revenueHead}</tr>${dayRows || `<tr><td colspan="${revenueColspan}">本月尚無每日記帳資料</td></tr>`}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(tOnline).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(tScan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(paymentTotals[p.id])}</td>`).join('')}<td>$${Math.round(tRev).toLocaleString()}</td></tr></table></div>
-        <h4 class="section-title">📦 支出與人事</h4>
+        <div class="card report-card" style="padding:0"><table><tr>${revenueHead}</tr>${dayRows || `<tr><td colspan="${revenueColspan}">本月尚無每日記帳資料</td></tr>`}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(tOnline).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(tScan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(paymentTotals[p.id])}</td>`).join('')}<td>$${Math.round(tRev).toLocaleString()}</td><td>$${tFees.toLocaleString()}</td><td>$${tPaymentNet.toLocaleString()}</td></tr></table></div>
+        <div class="report-note">支付入帳為扣除手續費後的預計金額。</div><h4 class="section-title">📦 支出與人事</h4><div class="card">支付手續費支出：$${tFees.toLocaleString()}</div>
         <div class="card report-card" style="padding:0"><table><tr><th colspan="4" style="text-align:left;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="5">無廠商進貨</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="2" style="text-align:left;">固定支出</th><th colspan="2" style="text-align:left;">計算方式</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">人事成本</th><th>合計</th></tr>${staffHtml || '<tr><td colspan="5">無人事資料</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
-        <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff).toLocaleString()}</div>`;
+        <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff - tFees).toLocaleString()}</div>`;
     renderSouffleReport(false);
 }
 
@@ -1202,7 +1222,7 @@ function saveDaily(isAuto = false){
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     const old=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
-    set('d_'+date, {...old,date,vendorBilling:currentVendorRules(old),c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
+    set('d_'+date, {...old,date,paymentFeeRates:dailyPaymentFeeRates(old),vendorBilling:currentVendorRules(old),c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
     updateVendorBalances();
     const paid=vendorCashPaid(JSON.parse(localStorage.getItem(KEY+'d_'+date)),date);
     const note=document.getElementById('vendorCashNote');if(note){note.style.display=paid?'block':'none';note.textContent='廠商現金付款加回 '+money(paid);}
@@ -1463,6 +1483,7 @@ function renderSettings(){
     document.getElementById('sHasPublic').checked=c.hasPublic!==false;
     document.getElementById('sOnlineName').value=c.onlineName||'網路收入';
     document.getElementById('sScanName').value=c.scanName||'掃碼支付';
+    document.getElementById('sOnlineFee').value=feeRate(c.onlineFeeRate);document.getElementById('sScanFee').value=feeRate(c.scanFeeRate);
     renderPaymentSettings(c);
     if(document.getElementById('sStartMonth')) document.getElementById('sStartMonth').value = c.startMonth || document.getElementById('mMonth')?.value || currentMonthValue();
     if(document.getElementById('sShowOnlinePay')) document.getElementById('sShowOnlinePay').checked = c.showOnlinePay !== false;
@@ -1478,13 +1499,15 @@ function renderSettings(){
 }
 function saveSettings(){
     const c = cfg();
+    saveDaily();
     const startMonth = document.getElementById('sStartMonth').value || c.startMonth || currentMonthValue();
     Object.assign(c, {
         electricMode:document.getElementById('sElectricMode').value, waterMode:document.getElementById('sWaterMode').value, gasMode:document.getElementById('sGasMode').value,
         hasElectric:document.getElementById('sHasElectric').checked,hasWater:document.getElementById('sHasWater').checked,hasGas:document.getElementById('sHasGas').checked,hasTax:document.getElementById('sHasTax').checked,
         hasPublic:document.getElementById('sHasPublic').checked,
+        onlineFeeRate:feeRate(document.getElementById('sOnlineFee').value),scanFeeRate:feeRate(document.getElementById('sScanFee').value),
         onlineName:document.getElementById('sOnlineName').value.trim()||'網路收入', scanName:document.getElementById('sScanName').value.trim()||'掃碼支付',
-        paymentItems:Array.from(document.querySelectorAll('.payment-name')).map(i=>({id:i.dataset.id,name:i.value.trim()||paymentItems(c).find(p=>p.id===i.dataset.id)?.name||'其他收入',enabled:!!i.value.trim() && !!Array.from(document.querySelectorAll('.payment-enabled')).find(check=>check.dataset.id===i.dataset.id)?.checked})),
+        paymentItems:Array.from(document.querySelectorAll('.payment-name')).map(i=>({id:i.dataset.id,feeRate:feeRate(Array.from(document.querySelectorAll('.payment-fee')).find(f=>f.dataset.id===i.dataset.id)?.value),name:i.value.trim()||paymentItems(c).find(p=>p.id===i.dataset.id)?.name||'其他收入',enabled:!!i.value.trim() && !!Array.from(document.querySelectorAll('.payment-enabled')).find(check=>check.dataset.id===i.dataset.id)?.checked})),
         ue:parseFloat(document.getElementById('upElec').value)||0,
         uw:parseFloat(document.getElementById('upWater').value)||0,
         ug:parseFloat(document.getElementById('upGas').value)||0,
@@ -1505,6 +1528,7 @@ function saveSettings(){
         startMonth:startMonth
     });
     set('cfg', c);
+    const feeDate=document.getElementById('logDate').value,feeDay=JSON.parse(localStorage.getItem(KEY+'d_'+feeDate))||{};set('d_'+feeDate,{...feeDay,paymentFeeRates:configuredPaymentFees(c)});
     const baseMonth = syncMonthlyBasesFromSettings(c);
     showSaveToast('設定已儲存');
     loadDaily();
