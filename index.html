@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.11</title>
+    <title>Wazi 管理系統 V23.12</title>
     <style>
+        .feature-box {padding:10px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px;}
+        .settlement-info {border-top:1px solid var(--line); margin-top:10px; padding-top:10px; font-size:13px; line-height:1.6;}
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
         :root {
             --bg: #f3f5f2;
@@ -135,7 +137,7 @@
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
                 <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
-            <div id="extraPaymentArea" class="grid"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
+            <div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
             <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
@@ -211,29 +213,17 @@
 
     <div id="settings" class="tab-content">
         <div class="card">
-            <h4 class="section-title">單價與零用金</h4>
-            <div class="grid">
-                <div class="form-group"><label>電單價</label><input type="number" id="upElec"></div>
-                <div class="form-group"><label>水單價</label><input type="number" id="upWater"></div>
-                <div class="form-group"><label>瓦斯單價</label><input type="number" id="upGas"></div>
-                <div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div>
-                <div class="form-group"><label>公攤費比例</label><input type="number" inputmode="decimal" id="sPublicRate"></div>
-                <div class="form-group"><label>稅金比例</label><input type="number" inputmode="decimal" id="sTaxRate"></div>
-                <label class="check-row"><input type="checkbox" id="sShowOnlinePay">顯示網路收入</label>
-                <label class="check-row"><input type="checkbox" id="sShowScanPay">顯示掃碼支付</label>
-            </div>
-            <h4 class="section-title">記帳方式</h4><div class="grid">
-<div class="form-group"><label>電費記帳方式</label><select id="sElectricMode"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div class="form-group"><label>水費記帳方式</label><select id="sWaterMode"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div class="form-group"><label>瓦斯費記帳方式</label><select id="sGasMode"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><label class="check-row"><input type="checkbox" id="sHasPublic">有公攤費</label></div>
-<h4 class="section-title">網路收入名稱</h4><div class="grid"><div class="form-group"><label>原網路收入名稱</label><input id="sOnlineName" placeholder="例如：Uber Eats"></div><div class="form-group"><label>原掃碼支付名稱</label><input id="sScanName" placeholder="例如：LINE Pay"></div></div>
+<h4 class="section-title">基本設定</h4><div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div><h4 class="section-title">費用功能</h4>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasElectric" onchange="toggleSettingsFeatures()">有電費</label><div id="sElectricOptions"><div class="form-group"><label>記帳方式</label><select id="sElectricMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sElectricMeterOptions" class="grid"><div class="form-group"><label>電費單價</label><input type="number" id="upElec"></div><div class="form-group"><label>上次結算總110度數</label><input type="number" id="si110"></div><div class="form-group"><label>上次結算總220度數</label><input type="number" id="si220"></div></div></div></div>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasWater" onchange="toggleSettingsFeatures()">有水費</label><div id="sWaterOptions"><div class="form-group"><label>記帳方式</label><select id="sWaterMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sWaterMeterOptions" class="grid"><div class="form-group"><label>水費單價</label><input type="number" id="upWater"></div><div class="form-group"><label>上次結算水錶度數</label><input type="number" id="siw"></div></div></div></div>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasGas" onchange="toggleSettingsFeatures()">有瓦斯費</label><div id="sGasOptions"><div class="form-group"><label>記帳方式</label><select id="sGasMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sGasMeterOptions" class="grid"><div class="form-group"><label>瓦斯費單價</label><input type="number" id="upGas"></div><div class="form-group"><label>上次結算瓦斯錶度數</label><input type="number" id="sig"></div></div></div></div>
+<div class="form-group" id="sStartMonthWrap"><label>上次抄表結算月份</label><input type="month" id="sStartMonth"></div>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasPublic" onchange="toggleSettingsFeatures()">有公攤費</label><div id="sPublicOptions" class="form-group"><label>公攤費比例</label><input type="number" inputmode="decimal" id="sPublicRate"></div></div>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasTax" onchange="toggleSettingsFeatures()">有稅金</label><div id="sTaxOptions" class="form-group"><label>稅金比例</label><input type="number" inputmode="decimal" id="sTaxRate"></div></div>
+<h4 class="section-title">收入項目</h4>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowOnlinePay" onchange="toggleSettingsFeatures()">啟用網路收入</label><div id="sOnlineNameOptions" class="form-group"><label>收入名稱</label><input id="sOnlineName" placeholder="自行輸入名稱"></div></div>
+<div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowScanPay" onchange="toggleSettingsFeatures()">啟用掃碼支付</label><div id="sScanNameOptions" class="form-group"><label>收入名稱</label><input id="sScanName" placeholder="自行輸入名稱"></div></div>
 <div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
-<h4 class="section-title">上次結算度數</h4>
-            <div class="grid">
-                <div class="form-group"><label>上次結算月份</label><input type="month" id="sStartMonth"></div>
-                <div class="form-group"><label>總110</label><input type="number" id="si110"></div>
-                <div class="form-group"><label>總220</label><input type="number" id="si220"></div>
-                <div class="form-group"><label>水</label><input type="number" id="siw"></div>
-                <div class="form-group"><label>瓦斯</label><input type="number" id="sig"></div>
-            </div>
             <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
         </div>
         <div class="card">
@@ -245,7 +235,7 @@
                 <div class="form-group"><label>分租分表110</label><input type="number" inputmode="decimal" id="sis110"></div>
                 <div class="form-group"><label>分租分表220</label><input type="number" inputmode="decimal" id="sis220"></div>
             </div>
-            <button class="btn btn-success" onclick="saveSettings()">💾 儲存分租設定</button>
+            <button id="saveSubleaseSettings" class="btn btn-success" onclick="saveSettings()">💾 儲存分租設定</button>
         </div>
         <div class="card">
             <h4 class="section-title">自訂固定支出</h4>
@@ -465,7 +455,7 @@ function getFixedExpenseRows(m, c){
     for(const [key,label] of [['electric','電費'],['water','水費'],['gas','瓦斯']]){
         if(modes[key]==='amount'){ const row=baseRows.find(r=>r.label===label); row.detail='直接輸入金額'; row.amount=num(m.utilityAmounts?.[key]); }
     }
-    return baseRows.filter(r=>r.label!=='公攤' || m.hasPublic!==false).concat(customRows);
+    return baseRows.filter(r=>(r.label!=='公攤'||m.hasPublic!==false)&&(r.label!=='稅金'||m.hasTax!==false)&&!Object.entries({electric:'電費',water:'水費',gas:'瓦斯'}).some(([key,label])=>r.label===label&&m.utilityEnabled?.[key]===false)).concat(customRows);
 }
 
 function getSouffleExpenseRows(m, c){
@@ -490,7 +480,7 @@ function getSouffleExpenseRows(m, c){
         {label:'水費', detail:monthlyModes(m).water==='amount'?'同主報表水費：直接輸入金額':`同主報表水費：${waterUse.toFixed(1)} 度 × ${unitMoney(rates.uw)}`, amount:waterAmount},
         {label:'公攤費', detail:`同主報表公攤：${money(m.pub)} × ${publicRate}`, amount:pubAmount},
         {label:'營業額稅金', detail:`${money(souffle.revenue)} × ${taxRate}`, amount:num(souffle.revenue) * taxRate}
-    ];
+    ].filter(r=>(r.label!=='公攤費'||m.hasPublic!==false)&&(r.label!=='水費'||m.utilityEnabled?.water!==false)&&(r.label!=='電費'||m.utilityEnabled?.electric!==false)&&(r.label!=='營業額稅金'||m.hasTax!==false));
 }
 
 function switchTab(id){
@@ -508,16 +498,31 @@ function switchTab(id){
 function paymentItems(c = cfg()) { return Array.isArray(c.paymentItems) ? c.paymentItems : []; }
 function addPaymentSetting(){
  const box=document.getElementById('paymentSettings');
- const row=document.createElement('div'); row.className='form-group';
+ const row=document.createElement('div'); row.className='feature-box';
+ const checkLabel=document.createElement('label'); checkLabel.className='check-row'; const check=document.createElement('input'); check.type='checkbox'; check.checked=true; check.className='payment-enabled'; checkLabel.append(check,document.createTextNode('啟用收入項目')); row.append(checkLabel);
  const input=document.createElement('input'); input.className='payment-name'; input.dataset.id='pay_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); input.placeholder='例如：街口支付、foodpanda';
- const label=document.createElement('label'); label.textContent='收入項目名稱'; row.append(label,input); box.append(row); input.focus();
+ const label=document.createElement('label'); label.textContent='收入項目名稱'; const options=document.createElement('div'); options.className='payment-options'; options.append(label,input); row.append(options); check.dataset.id=input.dataset.id; check.onchange=()=>togglePaymentOption(check); box.append(row); input.focus();
 }
 function renderPaymentSettings(c){
- document.getElementById('paymentSettings').innerHTML=paymentItems(c).map(p=>`<div class="form-group"><label>收入項目名稱（留空可停用，歷史金額保留）</label><input class="payment-name" data-id="${escapeHtml(p.id)}" value="${escapeHtml(p.name)}"></div>`).join('');
+ document.getElementById('paymentSettings').innerHTML=paymentItems(c).map(p=>`<div class="feature-box"><label class="check-row"><input type="checkbox" class="payment-enabled" data-id="${escapeHtml(p.id)}" ${p.enabled!==false?'checked':''} onchange="togglePaymentOption(this)">啟用 ${escapeHtml(p.name)}</label><div class="form-group payment-options" style="display:${p.enabled!==false?'block':'none'}"><label>收入名稱</label><input class="payment-name" data-id="${escapeHtml(p.id)}" value="${escapeHtml(p.name)}"></div></div>`).join('');
+}
+function togglePaymentOption(input){ input.closest('.feature-box').querySelector('.payment-options').style.display=input.checked?'block':'none'; }
+function toggleSettingsFeatures(){
+ let hasMeter=false;
+ for(const key of ['Electric','Water','Gas']){
+  const enabled=document.getElementById('sHas'+key).checked;
+  const meter=document.getElementById('s'+key+'Mode').value==='meter';
+  document.getElementById('s'+key+'Options').style.display=enabled?'block':'none';
+  document.getElementById('s'+key+'MeterOptions').style.display=enabled&&meter?'grid':'none';
+  hasMeter=hasMeter||enabled&&meter;
+ }
+ document.getElementById('sStartMonthWrap').style.display=hasMeter?'block':'none';
+ for(const [toggle,wrap] of [['sHasPublic','sPublicOptions'],['sHasTax','sTaxOptions'],['sShowOnlinePay','sOnlineNameOptions'],['sShowScanPay','sScanNameOptions']]) document.getElementById(wrap).style.display=document.getElementById(toggle).checked?'block':'none';
+ toggleSubleaseSettings();
 }
 function renderExtraPayments(d){
  const items=paymentItems(); const saved=d.payments||{};
- document.getElementById('extraPaymentArea').innerHTML=items.filter(p=>p.enabled!==false || num(saved[p.id])).map(p=>`<div class="form-group"><label>${escapeHtml(p.name)}${p.enabled===false?'（已停用）':''}</label><input type="number" inputmode="decimal" class="extra-payment" data-id="${escapeHtml(p.id)}" value="${escapeHtml(saved[p.id] ?? '')}" oninput="calcDaily()"></div>`).join('');
+ document.getElementById('extraPaymentArea').innerHTML=items.filter(p=>p.enabled!==false).map(p=>`<div class="form-group"><label>${escapeHtml(p.name)}${p.enabled===false?'（已停用）':''}</label><input type="number" inputmode="decimal" class="extra-payment" data-id="${escapeHtml(p.id)}" value="${escapeHtml(saved[p.id] ?? '')}" oninput="calcDaily()"></div>`).join('');
 }
 function collectExtraPayments(){
  const date=document.getElementById('logDate').value;
@@ -530,20 +535,24 @@ function applyCurrentBillingSettings(){
  const month=document.getElementById('mMonth').value, c=cfg();
  const m=collectMonthlyData();
  m.utilityModes={electric:c.electricMode||'meter',water:c.waterMode||'meter',gas:c.gasMode||'meter'};
- m.hasPublic=c.hasPublic!==false;
+ m.hasPublic=c.hasPublic!==false; m.utilityEnabled={electric:c.hasElectric!==false,water:c.hasWater!==false,gas:c.hasGas!==false}; m.hasTax=c.hasTax!==false;
  set('m_'+month,m); loadMonthly(); refreshReportIfSameMonth(month); showSaveToast('本月記帳方式已更新');
 }
 function monthlyModes(m){ return m.utilityModes || {electric:'meter',water:'meter',gas:'meter'}; }
 function applyMonthlyModes(m,c){
  const modes=m.utilityModes || (['e110','e220','w','g'].some(k=>Object.prototype.hasOwnProperty.call(m,k)) ? monthlyModes(m) : {electric:c.electricMode||'meter',water:c.waterMode||'meter',gas:c.gasMode||'meter'});
  document.getElementById('monthly').dataset.utilityModes=JSON.stringify(modes);
+ const existing=['e110','e220','w','g'].some(k=>Object.prototype.hasOwnProperty.call(m,k));
+ const enabled=m.utilityEnabled || (existing?{electric:true,water:true,gas:true}:{electric:c.hasElectric!==false,water:c.hasWater!==false,gas:c.hasGas!==false});
+ document.getElementById('monthly').dataset.utilityEnabled=JSON.stringify(enabled);
+ const hasTax=m.hasTax ?? (existing?true:c.hasTax!==false); document.getElementById('monthly').dataset.hasTax=String(hasTax); document.getElementById('mtaxb').parentElement.style.display=hasTax?'block':'none';
  for(const [key,fields] of Object.entries({electric:['me110','me220'],water:['mw'],gas:['mg']})){
-  fields.forEach(id=>document.getElementById(id).parentElement.style.display=modes[key]==='amount'?'none':'block');
-  const input=document.getElementById('m'+key+'Amount'); input.parentElement.style.display=modes[key]==='amount'?'block':'none'; input.value=m.utilityAmounts?.[key] ?? '';
+  fields.forEach(id=>document.getElementById(id).parentElement.style.display=enabled[key]!==false&&modes[key]!=='amount'?'block':'none');
+  const input=document.getElementById('m'+key+'Amount'); input.parentElement.style.display=enabled[key]!==false&&modes[key]==='amount'?'block':'none'; input.value=m.utilityAmounts?.[key] ?? '';
  }
- const enabled=m.hasPublic ?? (Object.prototype.hasOwnProperty.call(m,'pub') ? true : c.hasPublic!==false);
- document.getElementById('monthly').dataset.hasPublic=String(enabled);
- document.getElementById('mpub').parentElement.style.display=enabled?'block':'none';
+ const publicEnabled=m.hasPublic ?? (Object.prototype.hasOwnProperty.call(m,'pub') ? true : c.hasPublic!==false);
+ document.getElementById('monthly').dataset.hasPublic=String(publicEnabled);
+ document.getElementById('mpub').parentElement.style.display=publicEnabled?'block':'none';
 }
 function paymentReportItems(month,c){
  const items=paymentItems(c).map(p=>({...p}));
@@ -559,14 +568,18 @@ function calcDaily(){
     const val = (id)=>parseFloat(document.getElementById(id).value) || 0;
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
-    const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '') || Array.from(document.querySelectorAll('.extra-payment')).some(i=>i.value!=='');
+    const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '') || Object.values(collectExtraPayments()).some(v=>v!==''&&v!=null);
+    const oldNote=document.getElementById('inactivePaymentNote'); if(oldNote){oldNote.style.display='none';oldNote.textContent='';}
     if(!hasInput) { document.getElementById('cSumDisplay').innerText = `$ 0`; scheduleDailyAutosave(); return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const petty = val('dailyPetty');
     const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, petty);
-    const online = c.showOnlinePay ? val('pOnline') : 0;
-    const scan = c.showScanPay ? val('pScan') : 0;
+    const online = val('pOnline');
+    const scan = val('pScan');
     const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()});
+    const activeIds=new Set(paymentItems(c).filter(p=>p.enabled!==false).map(p=>p.id));
+    const hiddenTotal=(c.showOnlinePay?0:online)+(c.showScanPay?0:scan)+Object.entries(collectExtraPayments()).reduce((sum,[id,value])=>sum+(activeIds.has(id)?0:num(value)),0);
+    const note=document.getElementById('inactivePaymentNote'); if(note){note.style.display=hiddenTotal?'block':'none';note.textContent=hiddenTotal?'本日已停用收入項目的歷史金額 '+money(hiddenTotal)+' 仍計入營業額':'';}
     document.getElementById('cSumDisplay').innerText = `$ ${Math.round(result).toLocaleString()}`;
     scheduleDailyAutosave();
 }
@@ -594,8 +607,8 @@ function getDailyRevenue(d, c){
     const val = (v)=>parseFloat(v)||0;
     const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
     const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty);
-    const online = c.showOnlinePay ? val(d.pOnline) : 0;
-    const scan = c.showScanPay ? val(d.pScan) : 0;
+    const online = val(d.pOnline);
+    const scan = val(d.pScan);
     return {cash, online, scan, total: cash + online + scan + extraPaymentTotal(d)};
 }
 
@@ -680,6 +693,7 @@ function genFullReport(){
     const month = document.getElementById('rMonth').value;
     const m = getMonthlyData(month);
     const c = cfg();
+    for(let i=1;i<=31;i++){const d=JSON.parse(localStorage.getItem(KEY+'d_'+month+'-'+String(i).padStart(2,'0')))||{}; if(num(d.pOnline))c.showOnlinePay=true;if(num(d.pScan))c.showScanPay=true;}
     const activeVendors = get('vendors');
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, vSum={}, miscRows="", tMisc=0;
     const reportPayments=paymentReportItems(month,c), paymentTotals={};
@@ -784,6 +798,8 @@ function exportReportPdf(){
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wazi ${month} 報表</title>
     <style>
+        .feature-box {padding:10px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px;}
+        .settlement-info {border-top:1px solid var(--line); margin-top:10px; padding-top:10px; font-size:13px; line-height:1.6;}
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
         body { margin: 0; background: #f3f5f2; color: #26322d; padding: 12px; }
         .wrap { max-width: 900px; margin: 0 auto; }
@@ -946,6 +962,33 @@ async function savePdfFromPreview(){
     }
 }
 
+
+function vendorDailyAmount(d,name){
+ return Object.entries(d.vs||{}).reduce((sum,[key,value])=>{const entry=getVendorEntry(key,value,get('vendors'));return sum+(entry?.name===name?entry.amount:0);},0);
+}
+function vendorBalance(name,asOf){
+ const settlements=get('vendorSettlements').filter(x=>x.name===name&&x.date<=asOf).sort((a,b)=>a.date.localeCompare(b.date));
+ const last=settlements.at(-1)?.date||'';
+ let unpaid=0;
+ Object.keys(localStorage).filter(k=>k.startsWith(KEY+'d_')).forEach(k=>{const date=k.slice((KEY+'d_').length); if(date>last&&date<=asOf)unpaid+=vendorDailyAmount(JSON.parse(localStorage.getItem(k))||{},name);});
+ return {last,unpaid};
+}
+function settlementHtml(name,date){
+ const b=vendorBalance(name,date), checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);
+ return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">已結清至這一天</label><div class="vendor-balance">${balanceText(b,date,checked)}</div></div>`;
+}
+function balanceText(b,date,checked){return `截至 ${escapeHtml(date)} 未結清：<b>${money(b.unpaid)}</b><br>${b.last?'上次結清日：'+escapeHtml(b.last):'尚無結清紀錄'}${checked?'<br>包含上次結清後至本日的所有進貨':''}`;}
+function updateVendorBalances(){
+ const date=document.getElementById('logDate').value;
+ document.querySelectorAll('[data-settlement-name]').forEach(el=>{const name=el.dataset.settlementName,b=vendorBalance(name,date);const checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);el.querySelector('.vendor-balance').innerHTML=balanceText(b,date,checked);el.querySelector('.vendor-settled').checked=checked;});
+}
+function toggleVendorSettlement(input){
+ const date=document.getElementById('logDate').value,name=input.dataset.name,checked=input.checked;
+ clearTimeout(scheduleDailyAutosave.timer); saveDaily(true);
+ const entries=get('vendorSettlements').filter(x=>!(x.name===name&&x.date===date));
+ if(checked)entries.push({name,date});set('vendorSettlements',entries);updateVendorBalances();showSaveToast(checked?'已結清至 '+date:'已取消本日結清');
+}
+
 function loadDaily(){
     isLoadingDaily = true;
     clearTimeout(scheduleDailyAutosave.timer);
@@ -962,12 +1005,13 @@ function loadDaily(){
             const lines = getVendorAmountLines(d, v.name);
             const vendorKey = encodeURIComponent(v.name);
             html += `<div class="v-row vendor-amount-card" data-vendor-key="${vendorKey}">
-                <b>${v.name}</b>
+                <b>${escapeHtml(v.name)}</b>
                 <div class="vendor-amount-lines">
                     ${lines.map((amount, index) => vendorAmountLineHtml(v.name, amount, index)).join('')}
                 </div>
                 <button type="button" class="btn btn-primary" onclick="addVendorAmountLine('${vendorKey}')">＋ 加一張報價單</button>
                 <div class="report-note" style="text-align:right;">小計：<b class="vendor-amount-total">$${Math.round(vendorAmountValue(lines)).toLocaleString()}</b></div>
+                ${settlementHtml(v.name,date)}
             </div>`;
         }
         else {
@@ -975,7 +1019,7 @@ function loadDaily(){
                 const key = v.name+'_'+it.n+'_'+it.p;
                 return `<div><label>${it.n}</label><input type="number" inputmode="numeric" pattern="[0-9]*" class="vit-qty" data-v="${v.name}" data-n="${it.n}" data-p="${it.p}" value="${d.vs[key]||''}" oninput="scheduleDailyAutosave()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;"></div>`;
             }).join('');
-            html += `<div class="v-row"><b>${v.name}</b><div class="vendor-item-grid">${itemInputs}</div></div>`;
+            html += `<div class="v-row"><b>${escapeHtml(v.name)}</b><div class="vendor-item-grid">${itemInputs}</div>${settlementHtml(v.name,date)}</div>`;
         }
     });
     document.getElementById('vDailyArea').innerHTML = html; renderMiscPayers(); renderMiscExpenses(); setupNumericKeyboards(); calcDaily();
@@ -1111,6 +1155,7 @@ function saveDaily(isAuto = false){
     document.querySelectorAll('.vit-qty').forEach(i => vs[i.dataset.v+'_'+i.dataset.n+'_'+i.dataset.p] = parseFloat(i.value)||0);
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     set('d_'+date, { c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
+    updateVendorBalances();
     showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
 function loadMonthly(){
@@ -1216,6 +1261,7 @@ function collectMonthlyData(){
     document.querySelectorAll('.m-fixed').forEach(i=>fixed[i.dataset.id]=parseFloat(i.value)||0);
     return {
         utilityModes:JSON.parse(document.getElementById('monthly').dataset.utilityModes),
+        utilityEnabled:JSON.parse(document.getElementById('monthly').dataset.utilityEnabled),hasTax:document.getElementById('monthly').dataset.hasTax!=='false',
         utilityAmounts:Object.fromEntries(['electric','water','gas'].map(k=>[k,num(document.getElementById('m'+k+'Amount').value)])),
         hasPublic:document.getElementById('monthly').dataset.hasPublic!=='false',
         staff:s,
@@ -1321,6 +1367,8 @@ function calcRecon(){
     }
     document.getElementById('reconDetailArea').innerHTML = `<table><tr><th>日</th><th>金額</th></tr>${Object.keys(dayDets).map(day => `<tr><td>${day}號</td><td>$${Math.round(dayDets[day]).toLocaleString()}</td></tr>`).join('')}</table>`;
     document.getElementById('reconSummaryArea').innerHTML = `<b>廠商小計</b>` + selectedNames.map(n => `<div style="display:flex;justify-content:space-between;"><span>${n}</span><span>$${Math.round(vTots[n]).toLocaleString()}</span></div>`).join('') + `<hr><b>總計：$${Math.round(totalAll).toLocaleString()}</b>`;
+    const parts=month.split('-').map(Number), lastDay=new Date(parts[0],parts[1],0).getDate(), cutoff=month+'-'+String(lastDay).padStart(2,'0');
+    document.getElementById('reconSummaryArea').innerHTML += '<hr><b>截至本月底未結清（含前月）</b>'+selectedNames.map(name=>{const b=vendorBalance(name,cutoff);return `<div class="list-row"><span>${escapeHtml(name)}<br><small>${b.last?'上次結清：'+b.last:'尚無結清紀錄'}</small></span><b>${money(b.unpaid)}</b></div>`;}).join('');
     document.getElementById('reconSummaryArea').style.display = 'block';
     document.getElementById('reconAction').style.display = (selectedNames.length === 1) ? 'block' : 'none';
 }
@@ -1335,6 +1383,7 @@ function renderSettings(){
     const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicRate:'publicRate', sTaxRate:'taxRate', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
     for(const key of ['Electric','Water','Gas']) document.getElementById('s'+key+'Mode').value=c[key.toLowerCase()+'Mode']||'meter';
+    for(const key of ['Electric','Water','Gas','Tax']) document.getElementById('sHas'+key).checked=c['has'+key]!==false;
     document.getElementById('sHasPublic').checked=c.hasPublic!==false;
     document.getElementById('sOnlineName').value=c.onlineName||'網路收入';
     document.getElementById('sScanName').value=c.scanName||'掃碼支付';
@@ -1349,16 +1398,17 @@ function renderSettings(){
     document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
     document.getElementById('listVendor').innerHTML = get('vendors').map((v,i)=>`<div class="list-row"><span>${v.name} (${v.type}${v.type==='品項' ? ` / ${(v.items||[]).length}項` : ''})</span><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增廠商</div>';
     toggleVendorItemFields();
-    toggleSubleaseSettings();
+    toggleSettingsFeatures();
 }
 function saveSettings(){
     const c = cfg();
     const startMonth = document.getElementById('sStartMonth').value || c.startMonth || currentMonthValue();
     Object.assign(c, {
         electricMode:document.getElementById('sElectricMode').value, waterMode:document.getElementById('sWaterMode').value, gasMode:document.getElementById('sGasMode').value,
+        hasElectric:document.getElementById('sHasElectric').checked,hasWater:document.getElementById('sHasWater').checked,hasGas:document.getElementById('sHasGas').checked,hasTax:document.getElementById('sHasTax').checked,
         hasPublic:document.getElementById('sHasPublic').checked,
         onlineName:document.getElementById('sOnlineName').value.trim()||'網路收入', scanName:document.getElementById('sScanName').value.trim()||'掃碼支付',
-        paymentItems:Array.from(document.querySelectorAll('.payment-name')).map(i=>({id:i.dataset.id,name:i.value.trim()||paymentItems(c).find(p=>p.id===i.dataset.id)?.name||'其他收入',enabled:!!i.value.trim()})),
+        paymentItems:Array.from(document.querySelectorAll('.payment-name')).map(i=>({id:i.dataset.id,name:i.value.trim()||paymentItems(c).find(p=>p.id===i.dataset.id)?.name||'其他收入',enabled:!!i.value.trim() && !!Array.from(document.querySelectorAll('.payment-enabled')).find(check=>check.dataset.id===i.dataset.id)?.checked})),
         ue:parseFloat(document.getElementById('upElec').value)||0,
         uw:parseFloat(document.getElementById('upWater').value)||0,
         ug:parseFloat(document.getElementById('upGas').value)||0,
@@ -1380,7 +1430,7 @@ function saveSettings(){
     });
     set('cfg', c);
     const baseMonth = syncMonthlyBasesFromSettings(c);
-    alert('設定已儲存');
+    showSaveToast('設定已儲存');
     loadDaily();
     if(document.getElementById('mMonth') && baseMonth) document.getElementById('mMonth').value = baseMonth;
     loadMonthly();
@@ -1447,6 +1497,7 @@ function toggleSubleaseSettings(){
     const has = !!document.getElementById('sHasSublease')?.checked;
     const fields = document.getElementById('subleaseSettingsFields');
     if(fields) fields.style.display = has ? 'grid' : 'none';
+    const button=document.getElementById('saveSubleaseSettings'); if(button)button.style.display=has?'block':'none';
 }
 function toggleVendorItemFields(){
     const type = document.getElementById('newVendorType')?.value;
@@ -1492,6 +1543,7 @@ function addVendor(){
     refreshAfterPeopleOrVendorChange();
 }
 function purgeVendorHistory(vendorName){
+    set('vendorSettlements',get('vendorSettlements').filter(x=>x.name!==vendorName));
     Object.keys(localStorage).forEach(key => {
         if(!key.startsWith(KEY+'d_')) return;
         const daily = JSON.parse(localStorage.getItem(key)) || {};
