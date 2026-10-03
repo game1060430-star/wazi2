@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.16</title>
+    <title>Wazi 管理系統 V23.17</title>
     <style>
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -556,12 +556,13 @@ function paymentSettlement(d){
  const rates=d.paymentFeeRates||{},amounts={pOnline:num(d.pOnline),pScan:num(d.pScan),...(d.payments||{})};
  let gross=0,fees=0;
  for(const [id,value] of Object.entries(amounts)){const amount=num(value);gross+=amount;fees+=Math.round(amount*feeRate(rates[id]))/100;}
- return {gross,fees:Math.round(fees*100)/100,net:Math.round((gross-fees)*100)/100};
+ const roundedFees=Math.round(Math.round(fees*100)/100);
+ return {gross,fees:roundedFees,net:Math.round(gross-roundedFees)};
 }
 function showPaymentSettlement(d){
  const result=paymentSettlement(d),note=document.getElementById('paymentFeeNote');
  const current=configuredPaymentFees(),saved=d.paymentFeeRates||{},amounts={pOnline:d.pOnline,pScan:d.pScan,...(d.payments||{})};const differs=Object.entries(amounts).some(([id,value])=>num(value)&&feeRate(current[id])!==feeRate(saved[id]));document.getElementById('applyPaymentFeesBtn').style.display=differs?'block':'none';
- note.style.display=result.gross?'block':'none';note.textContent=`支付交易 $${result.gross.toLocaleString()} · 手續費 $${result.fees.toLocaleString()} · 預計入帳 $${result.net.toLocaleString()}`;
+ note.style.display=result.gross?'block':'none';note.textContent=`支付交易 $${Math.round(result.gross).toLocaleString()} · 手續費 $${result.fees.toLocaleString()} · 預計入帳 $${result.net.toLocaleString()}`;
 }
 function applyPaymentFeesToDay(){
  saveDaily(true);const date=document.getElementById('logDate').value,d=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
@@ -812,7 +813,7 @@ function genFullReport(){
         </div>
         <h4 class="section-title">📅 每日營收</h4>
         <div class="card report-card" style="padding:0"><table><tr>${revenueHead}</tr>${dayRows || `<tr><td colspan="${revenueColspan}">本月尚無每日記帳資料</td></tr>`}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(tOnline).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(tScan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(paymentTotals[p.id])}</td>`).join('')}<td>$${Math.round(tRev).toLocaleString()}</td><td>$${tFees.toLocaleString()}</td><td>$${tPaymentNet.toLocaleString()}</td></tr></table></div>
-        <div class="report-note">支付入帳為扣除手續費後的預計金額。</div><h4 class="section-title">📦 支出與人事</h4><div class="card">支付手續費支出：$${tFees.toLocaleString()}</div>
+        <div class="report-note">每日手續費四捨五入至整數元，月報加總每日金額；支付入帳為扣除手續費後的預計金額。</div><h4 class="section-title">📦 支出與人事</h4><div class="card">支付手續費支出：$${tFees.toLocaleString()}</div>
         <div class="card report-card" style="padding:0"><table><tr><th colspan="4" style="text-align:left;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="5">無廠商進貨</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="2" style="text-align:left;">固定支出</th><th colspan="2" style="text-align:left;">計算方式</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">人事成本</th><th>合計</th></tr>${staffHtml || '<tr><td colspan="5">無人事資料</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
         <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff - tFees).toLocaleString()}</div>`;
     renderSouffleReport(false);
