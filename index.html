@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.7</title>
+    <title>Wazi 管理系統 V24.8</title>
     <style>
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -291,7 +291,7 @@
 
 
     <div id="bank" class="tab-content">
-      <div class="card"><h4 class="section-title">銀行出入帳</h4><div class="form-group"><label for="bankMonth">查看月份</label><input type="month" id="bankMonth" onchange="renderBank()"></div><div id="bankStats" class="stat-grid"></div><div class="report-note">入帳扣除手續費；出帳加上手續費。銀行紀錄與每日營業額分開，避免同一筆收入重複計算。</div><details><summary>銀行與預設手續費</summary><div class="grid"><div class="form-group"><label for="bankName">帳戶名稱</label><input id="bankName"></div><div class="form-group"><label for="bankOpening">第一筆紀錄前的餘額</label><input type="number" step="1" id="bankOpening"></div><div class="form-group"><label for="bankInFee">預設入帳手續費（元）</label><input type="number" min="0" step="1" id="bankInFee"></div><div class="form-group"><label for="bankOutFee">預設出帳手續費（元）</label><input type="number" min="0" step="1" id="bankOutFee"></div></div><button class="btn btn-success" onclick="saveBankConfig()">儲存銀行設定</button></details></div>
+      <div class="card"><h4 class="section-title">銀行出入帳</h4><div class="form-group"><label for="bankMonth">查看月份</label><input type="month" id="bankMonth" onchange="renderBank()"></div><div id="bankStats" class="stat-grid"></div><div class="report-note">入帳扣除手續費；出帳加上手續費。每日支付扣費後自動入帳；在每日記帳修改金額，銀行同步更新。其他入帳請另行新增。</div><details><summary>銀行與預設手續費</summary><div class="grid"><div class="form-group"><label for="bankName">帳戶名稱</label><input id="bankName"></div><div class="form-group"><label for="bankOpening">第一筆紀錄前的餘額</label><input type="number" step="1" id="bankOpening"></div><div class="form-group"><label for="bankInFee">預設入帳手續費（元）</label><input type="number" min="0" step="1" id="bankInFee"></div><div class="form-group"><label for="bankOutFee">預設出帳手續費（元）</label><input type="number" min="0" step="1" id="bankOutFee"></div></div><button class="btn btn-success" onclick="saveBankConfig()">儲存銀行設定</button></details></div>
 
       <div class="card"><div class="recon-toolbar"><h4 class="section-title">銀行明細</h4><button class="btn btn-info" id="bankUndoBtn" onclick="bankUndo()">復原上次修改</button></div><div id="bankRows"></div></div>
     </div>
@@ -308,7 +308,7 @@
 </details><details class="card settings-section"><summary>收入與手續費 <span>支付名稱、費率</span></summary>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowOnlinePay" onchange="toggleSettingsFeatures()">啟用網路收入</label><div id="sOnlineNameOptions" class="form-group"><label>收入名稱</label><input id="sOnlineName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sOnlineFee" oninput="savePaymentFeeSetting('pOnline',this.value)" onchange="refreshHistoricalPaymentFees()"></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowScanPay" onchange="toggleSettingsFeatures()">啟用掃碼支付</label><div id="sScanNameOptions" class="form-group"><label>收入名稱</label><input id="sScanName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sScanFee" oninput="savePaymentFeeSetting('pScan',this.value)" onchange="refreshHistoricalPaymentFees()"></div></div>
-<div class="report-note">輸入交易金額，手續費另列支出。費率自動儲存。2026 年 9、10 月舊帳會補入設定費率，新紀錄自動計算。</div><div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
+<div class="report-note">輸入交易金額，總額扣除手續費；支付實收自動記入銀行。費率自動儲存。2026 年 9、10 月舊帳會補入設定費率，新紀錄自動計算。</div><div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
 </details><button class="btn btn-success settings-save" onclick="saveSettings()">儲存設定</button>
         <details class="card settings-section"><summary>分租設定 <span>租金、分表</span></summary>
             <label class="check-row"><input type="checkbox" id="sHasSublease" onchange="toggleSubleaseSettings()">有分租</label>
@@ -715,7 +715,7 @@ function calcDaily(skipAutosave = false){
     const vendorPaid=vendorCashPaid(vendorDraft()),miscCash=typeof miscTillPaid==='function'?miscTillPaid(document.getElementById('logDate').value):0,cashPaid=vendorPaid-miscCash;
     const cashNote=document.getElementById('vendorCashNote');if(cashNote){cashNote.style.display=vendorPaid||miscCash?'block':'none';cashNote.textContent=[vendorPaid?'廠商現金付款加回 '+money(vendorPaid):'',miscCash?'現金雜支扣除 '+money(miscCash):''].filter(Boolean).join(' · ');}
     const feeDay=vendorDraft();showPaymentSettlement({...feeDay,pOnline:online,pScan:scan,payments:collectExtraPayments(),paymentFeeRates:dailyPaymentFeeRates(feeDay)});
-    const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()}) + cashPaid;
+    const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()}) + cashPaid - paymentSettlement({...feeDay,pOnline:online,pScan:scan,payments:collectExtraPayments(),paymentFeeRates:dailyPaymentFeeRates(feeDay)}).fees;
     const activeIds=new Set(paymentItems(c).filter(p=>p.enabled!==false).map(p=>p.id));
     const hiddenTotal=(c.showOnlinePay?0:online)+(c.showScanPay?0:scan)+Object.entries(collectExtraPayments()).reduce((sum,[id,value])=>sum+(activeIds.has(id)?0:num(value)),0);
     const note=document.getElementById('inactivePaymentNote'); if(note){note.style.display=hiddenTotal?'block':'none';note.textContent=hiddenTotal?'本日已停用收入項目的歷史金額 '+money(hiddenTotal)+' 仍計入營業額':'';}
@@ -748,7 +748,7 @@ function getDailyRevenue(d, c, date=d.date||''){
     const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty) + vendorCashPaid(d,date);
     const online = val(d.pOnline);
     const scan = val(d.pScan);
-    return {cash, online, scan, total: cash + online + scan + extraPaymentTotal(d)};
+    return {cash, online, scan, total: cash + online + scan + extraPaymentTotal(d) - paymentSettlement(d).fees};
 }
 
 function getNetCashRevenue(cashAmount, pettyAmount){
@@ -837,7 +837,7 @@ function genFullReport(){
     let dayRows="", tCash=0, tOnline=0, tScan=0, tDays=0, tFees=0, tPaymentNet=0, vSum={}, miscRows="", tMisc=0;
     const reportPayments=paymentReportItems(month,c), paymentTotals={};
     reportPayments.forEach(p=>paymentTotals[p.id]=0);
-    const revenueHead = `<th>日</th><th>現金</th>${c.showOnlinePay ? `<th>${escapeHtml(c.onlineName||'網路收入')}</th>` : ''}${c.showScanPay ? `<th>${escapeHtml(c.scanName||'掃碼支付')}</th>` : ''}${reportPayments.map(p=>`<th>${escapeHtml(p.name)}</th>`).join('')}<th>總額</th><th>手續費</th><th>支付入帳</th>`;
+    const revenueHead = `<th>日</th><th>現金</th>${c.showOnlinePay ? `<th>${escapeHtml(c.onlineName||'網路收入')}</th>` : ''}${c.showScanPay ? `<th>${escapeHtml(c.scanName||'掃碼支付')}</th>` : ''}${reportPayments.map(p=>`<th>${escapeHtml(p.name)}</th>`).join('')}<th>實收總額</th><th>手續費</th><th>支付入帳</th>`;
     const revenueColspan = 5 + reportPayments.length + (c.showOnlinePay ? 1 : 0) + (c.showScanPay ? 1 : 0);
     for(let i=1; i<=31; i++){
         const date = month + '-' + String(i).padStart(2,'0');
@@ -864,7 +864,7 @@ function genFullReport(){
             });
         }
     }
-    const tRev = tCash + tOnline + tScan + Object.values(paymentTotals).reduce((sum,v)=>sum+v,0);
+    const tRev = tCash + tOnline + tScan + Object.values(paymentTotals).reduce((sum,v)=>sum+v,0) - tFees;
     const tVendor = Object.values(vSum).reduce((a,b)=>a+b, 0);
     let tFixed = 0;
     const fixedRows = getFixedExpenseRows(m, c).map(f=>{
@@ -886,9 +886,9 @@ function genFullReport(){
         </div>
         <h4 class="section-title">📅 每日營收</h4>
         <div class="card report-card" style="padding:0"><table><tr>${revenueHead}</tr>${dayRows || `<tr><td colspan="${revenueColspan}">本月尚無每日記帳資料</td></tr>`}<tr class="total-row"><td>總計</td><td>$${Math.round(tCash).toLocaleString()}</td>${c.showOnlinePay ? `<td>$${Math.round(tOnline).toLocaleString()}</td>` : ''}${c.showScanPay ? `<td>$${Math.round(tScan).toLocaleString()}</td>` : ''}${reportPayments.map(p=>`<td>${money(paymentTotals[p.id])}</td>`).join('')}<td>$${Math.round(tRev).toLocaleString()}</td><td>$${tFees.toLocaleString()}</td><td>$${tPaymentNet.toLocaleString()}</td></tr></table></div>
-        <div class="report-note">每日手續費四捨五入至整數元，月報加總每日金額；支付入帳為扣除手續費後的預計金額。</div><h4 class="section-title">📦 支出與人事</h4><div class="card">支付手續費支出：$${tFees.toLocaleString()}</div>
+        <div class="report-note">每日手續費四捨五入至整數元，月報加總每日金額；實收總額已扣手續費，純利不再重複扣除；支付實收自動記入銀行。</div><h4 class="section-title">📦 支出與人事</h4><div class="card">已扣除的支付手續費：$${tFees.toLocaleString()}</div>
         <div class="card report-card" style="padding:0"><table><tr><th colspan="4" style="text-align:left;">廠商進貨</th><th>金額</th></tr>${Object.keys(vSum).map(vn => `<tr><td colspan="4" style="text-align:left;">${vn}</td><td>$${Math.round(vSum[vn]).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="5">無廠商進貨</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">廠商總計</td><td>$${Math.round(tVendor).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">雜支</th><th>金額</th></tr>${miscRows || '<tr><td colspan="5">無雜支</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">雜支總計</td><td>$${Math.round(tMisc).toLocaleString()}</td></tr><tr><th colspan="2" style="text-align:left;">固定支出</th><th colspan="2" style="text-align:left;">計算方式</th><th>金額</th></tr>${fixedRows}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">固定總計</td><td>$${Math.round(tFixed).toLocaleString()}</td></tr><tr><th colspan="4" style="text-align:left;">人事成本</th><th>合計</th></tr>${staffHtml || '<tr><td colspan="5">無人事資料</td></tr>'}<tr class="grand-total-row"><td colspan="4" style="text-align:left;">人事總計</td><td>$${Math.round(tStaff).toLocaleString()}</td></tr></table></div>
-        <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff - tFees).toLocaleString()}</div>`;
+        <div class="profit-box">預計純利：$${Math.round(tRev - tVendor - tMisc - tFixed - tStaff).toLocaleString()}</div>`;
     renderSouffleReport(false);
 }
 
@@ -1791,6 +1791,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js?v=24.7"></script>
+<script src="bank.js?v=24.8"></script>
 </body>
 </html>
