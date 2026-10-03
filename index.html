@@ -1,10 +1,9 @@
-        id:'custom_'+item.id,
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.12</title>
+    <title>Wazi 管理系統 V24.13</title>
     <style>
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -172,7 +171,6 @@
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('daily')">每日記帳</button>
@@ -204,23 +202,23 @@
             </div>
             </div>
             <div id="cashDirectArea" style="display:none;">
-                <div class="form-group"><label>收銀餘額（含零用金）</label><input type="number" inputmode="decimal" id="cashDirect" oninput="calcDaily()"></div>
+                <div class="form-group"><label>最後剩餘現金（含零用金）</label><input type="number" inputmode="decimal" id="cashDirect" oninput="calcDaily()"></div>
             </div>
             <div class="grid">
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
                 <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
             <div id="paymentFeeNote" class="report-note" style="display:none"></div><button type="button" id="applyPaymentFeesBtn" class="btn btn-primary" style="display:none" onclick="applyPaymentFeesToDay()">套用目前手續費率到本日</button><div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="cash-total-row"><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
-            <div class="daily-total">今日營業額<br><span id="cSumDisplay">$0</span></div></div>
+            <div class="daily-total">今日營收（扣支付手續費）<br><span id="cSumDisplay">$0</span></div></div>
         </div>
-        <h4 class="section-title">② 記錄進貨</h4>
+        <div id="cashCalculationNote" class="report-note"></div><div class="report-note">現金營收＝最後剩餘現金＋今日收銀現金付款－零用金；網路支付再加扣費後淨額。付款不會再從剩餘現金扣一次。</div><h4 class="section-title">② 記錄進貨</h4>
         <div id="vendorCashNote" class="report-note" style="display:none"></div><div id="vDailyArea" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
         <div class="card">
             <h4 style="margin:0 0 10px;">③ 記錄雜支</h4>
             <div class="grid">
                 <div class="form-group"><label>品名</label><input type="text" id="miscName" placeholder="例如：臨時用品"></div>
                 <div class="form-group"><label>金額</label><input type="number" inputmode="numeric" pattern="[0-9]*" id="miscAmount" placeholder="金額"></div>
-                <label class="check-row"><input type="checkbox" id="miscUnpaid" onchange="toggleMiscPayer()">未支付 / 代墊</label>
+                <div class="form-group" id="miscFundingGroup"><label>雜支付款來源</label><select id="miscFundingSource"><option value="pending">尚未出帳／之後付款</option><option value="till">已付：今日收銀取款</option><option value="external">已付：另外拿現金</option></select></div><label class="check-row"><input type="checkbox" id="miscUnpaid" onchange="toggleMiscPayer()">未支付 / 代墊</label>
                 <div class="form-group" id="miscPayerWrap" style="display:none;"><label>代墊人</label><select id="miscPayer"></select></div>
             </div>
             <button class="btn btn-primary" id="miscSubmitBtn" onclick="addMiscExpense()">+ 新增雜支</button>
@@ -228,7 +226,7 @@
             <div id="miscList" class="misc-list"></div>
         </div>
         <div class="card" id="outstandingCard"><div class="compact-heading"><h4>④ 付款／出帳</h4><div class="balance-chip">待處理 <b id="outstandingTotal">$0</b></div></div><div class="report-note">包含之前未結清的廠商帳、雜支、固定支出與薪資。勾選多筆可一次付款，不會重複列費用。</div><div id="outstandingRows"></div><details id="paymentDepositPanel"><summary>支付入帳確認</summary><div class="report-note">勾選已收到的支付款項；可合併多天、分支付項目確認。</div><label>實際入帳日期</label><input type="date" id="paymentDepositDate" onchange="renderPaymentDeposits()"><div id="paymentDepositChoices"></div><div id="paymentDepositTotal" class="report-note"></div><button type="button" class="btn btn-success" onclick="confirmPaymentDeposit()">確認已入帳</button></details></div>
-      <details class="card" id="bankEntryForm"><summary class="compact-heading">銀行交易<div class="balance-chip">餘額 <b id="dailyBankBalance">$0</b></div></summary><div class="report-note">點選上方待付款項目可帶入金額；銀行入帳與餘額修正也在這裡操作。按確認付款後才會扣銀行餘額。</div><input type="hidden" id="bankEditId"><div class="grid"><input type="hidden" id="bankDate"><div class="form-group"><label for="bankKind">入帳／出帳</label><select id="bankKind" onchange="bankKindChanged()"><option value="in">入帳</option><option value="out">出帳</option><option value="adjust">餘額修正</option></select></div><div class="form-group" id="bankCategoryGroup"><label for="bankCategory">用途</label><select id="bankCategory" onchange="bankCategoryChanged()"></select></div><div class="form-group" id="bankVendorGroup" style="display:none"><label for="bankVendor">付款廠商</label><select id="bankVendor" onchange="bankVendorSelected=new Map();previewBankVendor();renderBankVendorInvoices()"></select><div id="bankVendorDebt" class="report-note"></div><div id="bankVendorInvoices"></div><button type="button" class="btn btn-info" onclick="fillBankVendorDebt()">付清餘額</button></div><div class="form-group" id="bankAdjustModeGroup" style="display:none"><label for="bankAdjustMode">調整方式</label><select id="bankAdjustMode" onchange="previewBankDelta()"><option value="target">設定正確餘額</option><option value="delta">增減差額</option></select></div><div class="form-group"><label for="bankAmount" id="bankAmountLabel">交易金額</label><input type="number" step="1" id="bankAmount" oninput="previewBankDelta()"></div></div><div id="paymentSourceGroup" class="form-group" style="display:none"><label>付款方式</label><select id="miscPaymentSource" onchange="toggleBankFee()"><option value="bank">銀行匯款</option><option value="till">現金（扣今日營業額）</option></select></div><div id="bankFixedGroup" style="display:none"><label id="bankFixedLabel">選擇固定支出</label><div id="bankFixedHint" class="report-note">先在每月結算記錄租金、水電等金額，再勾選付款；可一次付多筆，費用不會重複計算。</div><div id="bankFixedChoices"></div></div><div id="bankMiscGroup" style="display:none"><label class="check-row">選擇雜支／代墊款</label><div class="report-note">雜支無論是否帳務結算，只要尚未記錄出帳都可選，可一次支付多筆。</div><div id="bankMiscChoices"></div></div><div class="bank-extras"><label class="check-row" id="bankFeeToggle"><input type="checkbox" id="bankHasFee" onchange="toggleBankFee()">有手續費</label><div class="form-group" id="bankFeeGroup"><label for="bankFee">手續費（元）</label><input type="number" min="0" step="1" id="bankFee" oninput="previewBankDelta()"></div><div class="form-group bank-memo"><label for="bankMemo" id="bankMemoLabel">備註</label><input id="bankMemo"></div></div><div class="report-note" id="bankImpact"></div><div class="compact-actions"><button class="btn btn-success" id="bankSaveBtn" onclick="saveBankEntry()">新增銀行紀錄</button><button class="btn btn-info" id="bankCancelBtn" style="display:none" onclick="resetBankForm()">取消修改</button></div></details>
+      <details class="card" id="bankEntryForm"><summary class="compact-heading">付款與銀行交易<div class="balance-chip">餘額 <b id="dailyBankBalance">$0</b></div></summary><div class="report-note">點選上方待付款項目可帶入金額；銀行入帳與餘額修正也在這裡操作。按確認付款後才會扣銀行餘額。</div><input type="hidden" id="bankEditId"><div class="grid"><input type="hidden" id="bankDate"><div class="form-group"><label for="bankKind">入帳／出帳</label><select id="bankKind" onchange="bankKindChanged()"><option value="in">入帳</option><option value="out">出帳</option><option value="adjust">餘額修正</option></select></div><div class="form-group" id="bankCategoryGroup"><label for="bankCategory">用途</label><select id="bankCategory" onchange="bankCategoryChanged()"></select></div><div class="form-group" id="bankVendorGroup" style="display:none"><label for="bankVendor">付款廠商</label><select id="bankVendor" onchange="bankVendorSelected=new Map();previewBankVendor();renderBankVendorInvoices()"></select><div id="bankVendorDebt" class="report-note"></div><div id="bankVendorInvoices"></div><button type="button" class="btn btn-info" onclick="fillBankVendorDebt()">付清餘額</button></div><div class="form-group" id="bankAdjustModeGroup" style="display:none"><label for="bankAdjustMode">調整方式</label><select id="bankAdjustMode" onchange="previewBankDelta()"><option value="target">設定正確餘額</option><option value="delta">增減差額</option></select></div><div class="form-group"><label for="bankAmount" id="bankAmountLabel">交易金額</label><input type="number" step="1" id="bankAmount" oninput="previewBankDelta()"></div></div><div id="paymentSourceGroup" class="form-group" style="display:none"><label>付款方式</label><select id="miscPaymentSource" onchange="toggleBankFee()"><option value="bank">銀行匯款</option><option value="till">現金：今日收銀取款</option><option value="external">現金：另外拿錢（不含今日收銀）</option></select></div><div id="bankFixedGroup" style="display:none"><label id="bankFixedLabel">選擇固定支出</label><div id="bankFixedHint" class="report-note">先在每月結算記錄租金、水電等金額，再勾選付款；可一次付多筆，費用不會重複計算。</div><div id="bankFixedChoices"></div></div><div id="bankMiscGroup" style="display:none"><label class="check-row">選擇雜支／代墊款</label><div class="report-note">雜支無論是否帳務結算，只要尚未記錄出帳都可選，可一次支付多筆。</div><div id="bankMiscChoices"></div></div><div class="bank-extras"><label class="check-row" id="bankFeeToggle"><input type="checkbox" id="bankHasFee" onchange="toggleBankFee()">有手續費</label><div class="form-group" id="bankFeeGroup"><label for="bankFee">手續費（元）</label><input type="number" min="0" step="1" id="bankFee" oninput="previewBankDelta()"></div><div class="form-group bank-memo"><label for="bankMemo" id="bankMemoLabel">備註</label><input id="bankMemo"></div></div><div class="report-note" id="bankImpact"></div><div class="compact-actions"><button class="btn btn-success" id="bankSaveBtn" onclick="saveBankEntry()">新增銀行紀錄</button><button class="btn btn-info" id="bankCancelBtn" style="display:none" onclick="resetBankForm()">取消修改</button></div></details>
       <details class="card" id="dailyBankDetails"><summary>本日銀行明細</summary><div id="dailyBankRows"></div><button class="btn btn-info" onclick="bankUndo()">復原上次銀行修改</button></details>
 
         <button class="btn btn-success" style="margin-top:15px;" onclick="saveDaily()">✅ 儲存今日數據</button>
@@ -420,7 +418,13 @@ function getStartForMonth(month, c, monthlyData = null){
     return startFromCfg(c);
 }
 
+function backupBeforeCashRepair(){
+ const key=KEY+'repairBackupV2413';if(localStorage.getItem(key))return;
+ const data={};for(const name of Object.keys(localStorage)){if(name.startsWith(KEY)&&!['repairBackup','paymentFeeBackup','bankUndo','reconUndo'].some(part=>name.startsWith(KEY+part)))data[name]=localStorage.getItem(name);}
+ try{localStorage.setItem(key,JSON.stringify({createdAt:new Date().toISOString(),data}));}catch(e){showSaveToast('本機備份空間不足，原帳務資料仍保留；請使用設定頁匯出備份');}
+}
 function initApp(){
+ backupBeforeCashRepair();
     const now = new Date();
     const tzOffset = now.getTimezoneOffset() * 60000;
     const localISO = (new Date(Date.now() - tzOffset)).toISOString();
@@ -428,6 +432,7 @@ function initApp(){
     document.getElementById('reconMonth').value = localISO.slice(0, 7);
     document.getElementById('rMonth').value = localISO.slice(0, 7);
     document.getElementById('mMonth').value = localISO.slice(0, 7);
+    if(typeof repairFixedPaymentIds==='function')repairFixedPaymentIds();
     setupNumericKeyboards();
     backfillSeptemberOctoberFees();
     loadDaily(); renderRecon(); loadMonthly();
@@ -529,6 +534,7 @@ function getFixedExpenseRows(m, c){
         {id:'tax',label:'稅金', detail:`本月基數 ${money(m.taxb)} × 設定比例 ${taxRate}`, amount:num(m.taxb) * taxRate}
     ];
     const customRows = getEnabledFixedExpenses().map(item => ({
+        id:'custom_'+item.id,
         label:item.name,
         detail:`設定金額 ${money(item.amount)}，本月採用 ${money(m.fixed?.[item.id] ?? item.amount)}`,
         amount:num(m.fixed?.[item.id] ?? item.amount)
@@ -707,14 +713,15 @@ function calcDaily(skipAutosave = false){
     const paymentIds = ['c1000','c100','w50','w10','w5','cashDirect','pOnline','pScan'];
     const hasInput = paymentIds.some(id=>document.getElementById(id)?.value !== '') || Object.values(collectExtraPayments()).some(v=>v!==''&&v!=null);
     const oldNote=document.getElementById('inactivePaymentNote'); if(oldNote){oldNote.style.display='none';oldNote.textContent='';}
-    if(!hasInput) { document.getElementById('paymentFeeNote').style.display='none';document.getElementById('applyPaymentFeesBtn').style.display='none'; const cashNote=document.getElementById('vendorCashNote');if(cashNote)cashNote.style.display='none';document.getElementById('cSumDisplay').innerText = `$ 0`; if(!skipAutosave)scheduleDailyAutosave(); return; }
+    if(!hasInput) { if(document.getElementById('cashCalculationNote'))document.getElementById('cashCalculationNote').textContent='請輸入最後剩餘現金，再計算今日營收';document.getElementById('paymentFeeNote').style.display='none';document.getElementById('applyPaymentFeesBtn').style.display='none'; const cashNote=document.getElementById('vendorCashNote');if(cashNote)cashNote.style.display='none';document.getElementById('cSumDisplay').innerText = `$ 0`; if(!skipAutosave)scheduleDailyAutosave(); return; }
     const cashRaw = (val('c1000')*1000) + (val('c100')*100) + (Math.max(0, val('w50')-26)*5) + (Math.max(0, val('w10')-26)*1.33) + (Math.max(0, val('w5')-26)*1.1);
     const petty = val('dailyPetty');
     const cash = getNetCashRevenue(cashMode === 'direct' ? val('cashDirect') : cashRaw, petty);
     const online = val('pOnline');
     const scan = val('pScan');
-    const vendorPaid=vendorCashPaid(vendorDraft()),miscCash=typeof miscTillPaid==='function'?miscTillPaid(document.getElementById('logDate').value):0,cashPaid=-miscCash;
-    const cashNote=document.getElementById('vendorCashNote');if(cashNote){cashNote.style.display=vendorPaid||miscCash?'block':'none';cashNote.textContent=[vendorPaid?'廠商現金已付 '+money(vendorPaid)+'（輸入金額已扣，不再扣款）':'',miscCash?'現金支出扣除 '+money(miscCash):''].filter(Boolean).join(' · ');}
+    const vendorPaid=vendorCashPaid(vendorDraft(),document.getElementById('logDate').value),miscCash=typeof miscTillPaid==='function'?miscTillPaid(document.getElementById('logDate').value):0,cashPaid=vendorPaid+miscCash;
+    const cashNote=document.getElementById('vendorCashNote');if(cashNote){cashNote.style.display=vendorPaid||miscCash?'block':'none';cashNote.textContent=[vendorPaid?'廠商現金付款加回 '+money(vendorPaid):'',miscCash?'今日收銀支出加回 '+money(miscCash):''].filter(Boolean).join(' · ');}
+    const breakdown=document.getElementById('cashCalculationNote');if(breakdown)breakdown.textContent='剩餘現金 '+money(cashMode==='direct'?val('cashDirect'):cashRaw)+' ＋ 今日收銀付款 '+money(cashPaid)+' − 零用金 '+money(petty)+' ＝ 現金營收 '+money(cash+cashPaid);
     const feeDay=vendorDraft();showPaymentSettlement({...feeDay,pOnline:online,pScan:scan,payments:collectExtraPayments(),paymentFeeRates:dailyPaymentFeeRates(feeDay)});
     const result = cash + online + scan + extraPaymentTotal({payments:collectExtraPayments()}) + cashPaid - paymentSettlement({...feeDay,pOnline:online,pScan:scan,payments:collectExtraPayments(),paymentFeeRates:dailyPaymentFeeRates(feeDay)}).fees;
     const activeIds=new Set(paymentItems(c).filter(p=>p.enabled!==false).map(p=>p.id));
@@ -746,7 +753,7 @@ function applyPaymentVisibility(){
 function getDailyRevenue(d, c, date=d.date||''){
     const val = (v)=>parseFloat(v)||0;
     const cashOnly = (val(d.c1000)*1000) + (val(d.c100)*100) + (Math.max(0, val(d.w50)-26)*5) + (Math.max(0, val(d.w10)-26)*1.33) + (Math.max(0, val(d.w5)-26)*1.1);
-    const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty) + vendorCashPaid(d,date);
+    const cash = getNetCashRevenue(d.cashMode === 'direct' ? val(d.cashDirect) : cashOnly, d.petty ?? c.petty) + vendorCashPaid(d,date) + (typeof miscTillPaid==='function'?miscTillPaid(date):0);
     const online = val(d.pOnline);
     const scan = val(d.pScan);
     return {cash, online, scan, total: cash + online + scan + extraPaymentTotal(d) - paymentSettlement(d).fees};
@@ -1144,10 +1151,10 @@ function updateVendorTerms(index,key,value){
 }
 function settlementHtml(name,date,d){
  const rule=vendorRule({...d,vendorBilling:currentVendorRules(d)},name),cash=rule.source==='cash';
- if(rule.cycle==='daily')return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}" data-daily="1"><span>日結 · ${cash?'現金已付（輸入收銀已扣，銀行不扣款）':'帳戶付款'}</span></div>`;
+ if(rule.cycle==='daily')return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}" data-daily="1"><span>日結 · ${cash?'今日收銀現金已付（營收加回，銀行不扣款）':'帳戶付款'}</span></div>`;
  const b=vendorBalance(name,date),checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);
  const recorded=get('vendorSettlements').find(x=>x.name===name&&x.date===date),label=recorded&&recorded.source!=='cash'?'先前已結清（未記銀行交易）':'本日現金結清（含之前欠款）';
- return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">${label}</label><small>現金已從今日收銀扣除，銀行餘額不扣款。</small><div class="vendor-balance">未結清 <b>${money(b.unpaid)}</b></div></div>`;
+ return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">${label}</label><small>已從今日收銀付出：計算營收時加回，銀行餘額不變。</small><div class="vendor-balance">未結清 <b>${money(b.unpaid)}</b></div></div>`;
 }
 function updateVendorBalances(){
  const date=document.getElementById('logDate').value;
@@ -1252,12 +1259,12 @@ function renderMiscPayers(){
 function toggleMiscPayer(){
     const unpaid = !!document.getElementById('miscUnpaid')?.checked;
     const wrap = document.getElementById('miscPayerWrap');
-    if(wrap) wrap.style.display = unpaid ? 'block' : 'none';
+    if(wrap) wrap.style.display = unpaid ? 'block' : 'none';const funding=document.getElementById('miscFundingGroup');if(funding)funding.style.display=unpaid?'none':'block';
 }
 function renderMiscExpenses(){
     document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>{
-        const status = typeof bankMiscPaid==='function' && bankMiscPaid(item.id) ? '已付款／代墊已歸還' : item.unpaid ? (item.settled ? `帳務已結算${item.payer?' / 待歸還：'+item.payer:''}` : `未支付 / ${item.payer || '未指定'}`) : '費用已記錄／未記出帳';
-        return `<div class="misc-row"><span>${item.name}<br><small style="color:#728078;">${status}</small></span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-primary" onclick="editMiscExpense(${i})">改</button><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`;
+        const status = item.cashFunding==='till'?'已付：今日收銀取款（營收加回）':item.cashFunding==='external'?'已付：另外拿現金（不加回）':typeof bankMiscPaid==='function' && bankMiscPaid(item.id) ? '已付款／代墊已歸還' : item.unpaid ? (item.settled ? `帳務已結算${item.payer?' / 待歸還：'+item.payer:''}` : `未支付 / ${item.payer || '未指定'}`) : '費用已記錄／未記出帳';
+        return `<div class="misc-row"><span>${escapeHtml(item.name)}<br><small style="color:#728078;">${escapeHtml(status)}</small></span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-primary" onclick="editMiscExpense(${i})">改</button><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`;
     }).join('');
 }
 function addMiscExpense(){
@@ -1273,8 +1280,8 @@ function addMiscExpense(){
         if(!payer) return;
     }
     const existing = editingMiscIndex !== null ? (dailyMisc[editingMiscIndex] || {}) : {};
-    if(existing.id && typeof bankMiscPaid==='function' && bankMiscPaid(existing.id)){showSaveToast('請先刪除銀行付款紀錄，再修改這筆雜支');return;}
-    const next = {id:existing.id||'misc_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name, amount, unpaid, payer, settled: unpaid ? !!existing.settled : false};
+    if(existing.id && typeof miscHasStoredPayout==='function' && miscHasStoredPayout(existing.id)){showSaveToast('請先刪除銀行付款紀錄，再修改這筆雜支');return;}
+    const next = {id:existing.id||'misc_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name, amount, unpaid, payer, cashFunding:unpaid?'pending':(['till','external'].includes(document.getElementById('miscFundingSource').value)?document.getElementById('miscFundingSource').value:'pending'), settled: unpaid ? !!existing.settled : false};
     if(existing.settledAt && next.settled) next.settledAt = existing.settledAt;
     if(editingMiscIndex !== null) dailyMisc[editingMiscIndex] = next;
     else dailyMisc.push(next);
@@ -1288,7 +1295,7 @@ function editMiscExpense(index){
     editingMiscIndex = index;
     document.getElementById('miscName').value = item.name || '';
     document.getElementById('miscAmount').value = item.amount || '';
-    document.getElementById('miscUnpaid').checked = !!item.unpaid;
+    document.getElementById('miscUnpaid').checked = !!item.unpaid;document.getElementById('miscFundingSource').value=item.cashFunding||'pending';
     renderMiscPayers();
     if(item.unpaid){
         const select = document.getElementById('miscPayer');
@@ -1303,7 +1310,7 @@ function resetMiscForm(){
     editingMiscIndex = null;
     document.getElementById('miscName').value = '';
     document.getElementById('miscAmount').value = '';
-    if(document.getElementById('miscUnpaid')) document.getElementById('miscUnpaid').checked = false;
+    if(document.getElementById('miscUnpaid')) document.getElementById('miscUnpaid').checked = false;if(document.getElementById('miscFundingSource'))document.getElementById('miscFundingSource').value='pending';
     toggleMiscPayer();
     document.getElementById('miscSubmitBtn').innerText = '+ 新增雜支';
     document.getElementById('miscCancelEditBtn').style.display = 'none';
@@ -1312,7 +1319,7 @@ function cancelMiscEdit(){
     resetMiscForm();
 }
 function deleteMiscExpense(index){
-    if(typeof bankMiscPaid==='function' && bankMiscPaid(dailyMisc[index]?.id)){showSaveToast('請先刪除銀行付款紀錄，再刪除這筆雜支');return;}
+    if(typeof miscHasStoredPayout==='function' && miscHasStoredPayout(dailyMisc[index]?.id)){showSaveToast('請先刪除銀行付款紀錄，再刪除這筆雜支');return;}
     dailyMisc.splice(index, 1);
     if(editingMiscIndex === index) resetMiscForm();
     else if(editingMiscIndex !== null && editingMiscIndex > index) editingMiscIndex--;
@@ -1338,7 +1345,7 @@ function saveDaily(isAuto = false){
     set('d_'+date, {...old,date,vendorInvoiceIds,paymentFeeRates:dailyPaymentFeeRates(old),vendorBilling:currentVendorRules(old),c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
     updateVendorBalances();if(typeof renderDailyBank==='function')renderDailyBank();
     const paid=vendorCashPaid(JSON.parse(localStorage.getItem(KEY+'d_'+date)),date);const miscCash=typeof miscTillPaid==='function'?miscTillPaid(date):0;
-    const note=document.getElementById('vendorCashNote');if(note){note.style.display=paid||miscCash?'block':'none';note.textContent=[paid?'廠商現金已付 '+money(paid)+'（輸入金額已扣，不再扣款）':'',miscCash?'現金支出扣除 '+money(miscCash):''].filter(Boolean).join(' · ');}
+    const note=document.getElementById('vendorCashNote');if(note){note.style.display=paid||miscCash?'block':'none';note.textContent=[paid?'廠商現金付款加回 '+money(paid):'',miscCash?'今日收銀支出加回 '+money(miscCash):''].filter(Boolean).join(' · ');}
     calcDaily(true);
     showSaveToast(isAuto ? '已自動儲存' : '✅ 今日紀錄已儲存');
 }
@@ -1384,7 +1391,7 @@ function renderUnpaidMiscSettlement(month){
     const summary = Object.keys(payerTotals).map(payer => `<div class="list-row"><span>${payer}</span><b>${money(payerTotals[payer])}</b></div>`).join('');
     const rows = entries.map(({date, index, item}) => `
         <div class="list-row">
-            <span>${date.slice(8)}日 ${item.name}<br><small style="color:#728078;">${item.payer || '未指定'}</small></span>
+            <span>${date.slice(8)}日 ${escapeHtml(item.name)}<br><small style="color:#728078;">${item.payer || '未指定'}</small></span>
             <b>${money(item.amount)}</b>
             <button class="btn btn-success" onclick="settleUnpaidMisc('${date}', ${index})">帳務結算</button>
         </div>`).join('');
@@ -1795,6 +1802,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js?v=24.12"></script>
+<script src="bank.js?v=24.13"></script>
 </body>
 </html>
