@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.4</title>
+    <title>Wazi 管理系統 V24.5</title>
     <style>
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -212,7 +212,7 @@
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
         <div id="vendorCashNote" class="report-note" style="display:none"></div><div id="vDailyArea" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
-      <div class="card" id="bankEntryForm"><div class="compact-heading"><h4>銀行入帳／出帳</h4><div class="balance-chip">餘額 <b id="dailyBankBalance">$0</b></div></div><input type="hidden" id="bankEditId"><div class="grid"><input type="hidden" id="bankDate"><div class="form-group"><label for="bankKind">入帳／出帳</label><select id="bankKind" onchange="bankKindChanged()"><option value="in">入帳</option><option value="out">出帳</option><option value="adjust">餘額修正</option></select></div><div class="form-group" id="bankCategoryGroup"><label for="bankCategory">用途</label><select id="bankCategory" onchange="bankCategoryChanged()"></select></div><div class="form-group" id="bankVendorGroup" style="display:none"><label for="bankVendor">付款廠商</label><select id="bankVendor" onchange="previewBankVendor()"></select><div id="bankVendorDebt" class="report-note"></div></div><div class="form-group" id="bankAdjustModeGroup" style="display:none"><label for="bankAdjustMode">調整方式</label><select id="bankAdjustMode" onchange="previewBankDelta()"><option value="target">設定正確餘額</option><option value="delta">增減差額</option></select></div><div class="form-group"><label for="bankAmount" id="bankAmountLabel">交易金額</label><input type="number" step="1" id="bankAmount" oninput="previewBankDelta()"></div></div><div class="bank-extras"><label class="check-row" id="bankFeeToggle"><input type="checkbox" id="bankHasFee" onchange="toggleBankFee()">有手續費</label><div class="form-group" id="bankFeeGroup"><label for="bankFee">手續費（元）</label><input type="number" min="0" step="1" id="bankFee" oninput="previewBankDelta()"></div><div class="form-group bank-memo"><label for="bankMemo" id="bankMemoLabel">備註</label><input id="bankMemo"></div></div><div class="report-note" id="bankImpact"></div><div class="compact-actions"><button class="btn btn-success" id="bankSaveBtn" onclick="saveBankEntry()">新增銀行紀錄</button><button class="btn btn-info" id="bankCancelBtn" style="display:none" onclick="resetBankForm()">取消修改</button></div></div>
+      <div class="card" id="bankEntryForm"><div class="compact-heading"><h4>銀行入帳／出帳</h4><div class="balance-chip">餘額 <b id="dailyBankBalance">$0</b></div></div><input type="hidden" id="bankEditId"><div class="grid"><input type="hidden" id="bankDate"><div class="form-group"><label for="bankKind">入帳／出帳</label><select id="bankKind" onchange="bankKindChanged()"><option value="in">入帳</option><option value="out">出帳</option><option value="adjust">餘額修正</option></select></div><div class="form-group" id="bankCategoryGroup"><label for="bankCategory">用途</label><select id="bankCategory" onchange="bankCategoryChanged()"></select></div><div class="form-group" id="bankVendorGroup" style="display:none"><label for="bankVendor">付款廠商</label><select id="bankVendor" onchange="previewBankVendor()"></select><div id="bankVendorDebt" class="report-note"></div></div><div class="form-group" id="bankAdjustModeGroup" style="display:none"><label for="bankAdjustMode">調整方式</label><select id="bankAdjustMode" onchange="previewBankDelta()"><option value="target">設定正確餘額</option><option value="delta">增減差額</option></select></div><div class="form-group"><label for="bankAmount" id="bankAmountLabel">交易金額</label><input type="number" step="1" id="bankAmount" oninput="previewBankDelta()"></div></div><div id="bankMiscGroup" style="display:none"><label class="check-row">選擇未支付雜支</label><div class="report-note">可勾選當日及之前的未支付／代墊項目，金額自動加總。</div><div id="bankMiscChoices"></div></div><div class="bank-extras"><label class="check-row" id="bankFeeToggle"><input type="checkbox" id="bankHasFee" onchange="toggleBankFee()">有手續費</label><div class="form-group" id="bankFeeGroup"><label for="bankFee">手續費（元）</label><input type="number" min="0" step="1" id="bankFee" oninput="previewBankDelta()"></div><div class="form-group bank-memo"><label for="bankMemo" id="bankMemoLabel">備註</label><input id="bankMemo"></div></div><div class="report-note" id="bankImpact"></div><div class="compact-actions"><button class="btn btn-success" id="bankSaveBtn" onclick="saveBankEntry()">新增銀行紀錄</button><button class="btn btn-info" id="bankCancelBtn" style="display:none" onclick="resetBankForm()">取消修改</button></div></div>
       <details class="card" id="dailyBankDetails"><summary>本日銀行明細</summary><div id="dailyBankRows"></div><button class="btn btn-info" onclick="bankUndo()">復原上次銀行修改</button></details>
 
         <div class="card">
@@ -480,7 +480,7 @@ function getMiscPayers(){
 }
 
 function isMiscSettled(item){
-    return !item.unpaid || item.settled;
+    return !item.unpaid || item.settled || (typeof bankMiscPaid==='function' && bankMiscPaid(item.id));
 }
 
 function getUnpaidMiscEntries(month){
@@ -489,7 +489,7 @@ function getUnpaidMiscEntries(month){
         const date = month + '-' + String(i).padStart(2,'0');
         const d = JSON.parse(localStorage.getItem(KEY+'d_'+date));
         (d?.misc || []).forEach((item, index) => {
-            if(item.unpaid && !item.settled) entries.push({date, index, item});
+            if(!isMiscSettled(item)) entries.push({date, index, item});
         });
     }
     return entries;
@@ -1168,7 +1168,7 @@ function loadDaily(){
     document.getElementById('dailyPetty').value = getEffectivePettyForDate(date, d);
     setCashMode(d.cashMode || (d.cashDirect ? 'direct' : 'scale'));
     applyPaymentVisibility();
-    dailyMisc = d.misc || [];
+    dailyMisc = (d.misc || []).map((item,i)=>({...item,id:item.id||'misc_'+date+'_'+i}));
     let html = ""; const vendors = get('vendors');
     vendors.forEach(v => {
         if(v.type==='金額'){
@@ -1250,7 +1250,7 @@ function toggleMiscPayer(){
 }
 function renderMiscExpenses(){
     document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>{
-        const status = item.unpaid ? (item.settled ? `已結算 / ${item.payer || '未指定'}` : `未支付 / ${item.payer || '未指定'}`) : '已支付';
+        const status = typeof bankMiscPaid==='function' && bankMiscPaid(item.id) ? '銀行已支付' : item.unpaid ? (item.settled ? `已結算 / ${item.payer || '未指定'}` : `未支付 / ${item.payer || '未指定'}`) : '已支付';
         return `<div class="misc-row"><span>${item.name}<br><small style="color:#728078;">${status}</small></span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-primary" onclick="editMiscExpense(${i})">改</button><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`;
     }).join('');
 }
@@ -1267,7 +1267,8 @@ function addMiscExpense(){
         if(!payer) return;
     }
     const existing = editingMiscIndex !== null ? (dailyMisc[editingMiscIndex] || {}) : {};
-    const next = {name, amount, unpaid, payer, settled: unpaid ? !!existing.settled : false};
+    if(existing.id && typeof bankMiscPaid==='function' && bankMiscPaid(existing.id)){showSaveToast('請先刪除銀行付款紀錄，再修改這筆雜支');return;}
+    const next = {id:existing.id||'misc_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name, amount, unpaid, payer, settled: unpaid ? !!existing.settled : false};
     if(existing.settledAt && next.settled) next.settledAt = existing.settledAt;
     if(editingMiscIndex !== null) dailyMisc[editingMiscIndex] = next;
     else dailyMisc.push(next);
@@ -1305,6 +1306,7 @@ function cancelMiscEdit(){
     resetMiscForm();
 }
 function deleteMiscExpense(index){
+    if(typeof bankMiscPaid==='function' && bankMiscPaid(dailyMisc[index]?.id)){showSaveToast('請先刪除銀行付款紀錄，再刪除這筆雜支');return;}
     dailyMisc.splice(index, 1);
     if(editingMiscIndex === index) resetMiscForm();
     else if(editingMiscIndex !== null && editingMiscIndex > index) editingMiscIndex--;
@@ -1782,6 +1784,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js"></script>
+<script src="bank.js?v=24.5"></script>
 </body>
 </html>

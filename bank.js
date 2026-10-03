@@ -12,6 +12,7 @@ function saveBankFeatureSetting(){
 }
 // Independent bank cash ledger. Revenue remains in the original daily ledger.
 let bankFormDate='';
+let bankMiscSelected=new Set();
 function bankConfig(){const c=get('bankConfig');return Array.isArray(c)?{name:'銀行帳戶',opening:0,inFee:0,outFee:0}:c;}
 function bankEntries(){return get('bankEntries');}
 function bankInteger(value){const n=Number(value);if(!Number.isFinite(n)||!Number.isSafeInteger(n))throw Error('金額請輸入整數元');return n;}
@@ -40,12 +41,12 @@ function bankKindChanged(useDefault=true){
  const kind=document.getElementById('bankKind').value,c=bankConfig(),adjust=kind==='adjust',fee=kind==='in'?c.inFee:c.outFee;
  document.getElementById('bankFeeToggle').style.display=adjust?'none':'flex';document.getElementById('bankCategoryGroup').style.display=adjust?'none':'block';document.getElementById('bankAdjustModeGroup').style.display=adjust?'block':'none';
  document.getElementById('bankMemoLabel').textContent=adjust?'調整原因（必填）':'備註';document.getElementById('bankMemo').required=adjust;
- document.getElementById('bankCategory').innerHTML=adjust?'<option value="general">餘額修正</option>':kind==='in'?'<option value="general">一般入帳</option><option value="sale">出貨收入</option>':'<option value="general">一般出帳</option><option value="vendor">支付廠商欠款</option><option value="purchase">進貨支出</option>';
+ document.getElementById('bankCategory').innerHTML=adjust?'<option value="general">餘額修正</option>':kind==='in'?'<option value="general">一般入帳</option><option value="sale">出貨收入</option>':'<option value="general">一般出帳</option><option value="vendor">支付廠商欠款</option><option value="purchase">進貨支出</option><option value="misc">支付雜支</option>';
  if(useDefault){document.getElementById('bankHasFee').checked=!adjust&&fee>0;document.getElementById('bankFee').value=fee||0;document.getElementById('bankAdjustMode').value='target';}
  bankCategoryChanged();toggleBankFee();
 }
 function bankBalanceAsOf(date,excludeId='',entries=bankEntries()){return num(bankConfig().opening)+entries.filter(e=>!e.deleted&&e.id!==excludeId&&e.date<=date).reduce((sum,e)=>sum+bankDelta(e),0);}
-function bankCategoryChanged(){const linked=document.getElementById('bankKind').value==='out'&&document.getElementById('bankCategory').value==='vendor';document.getElementById('bankVendorGroup').style.display=linked?'block':'none';renderBankVendorOptions();previewBankVendor();}
+function bankCategoryChanged(){const linked=document.getElementById('bankKind').value==='out'&&document.getElementById('bankCategory').value==='vendor';document.getElementById('bankVendorGroup').style.display=linked?'block':'none';renderBankVendorOptions();previewBankVendor();renderBankMiscChoices();}
 function renderBankVendorOptions(){const input=document.getElementById('bankVendor'),selected=input.value;input.innerHTML='<option value="">選擇廠商</option>'+get('vendors').map(v=>`<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`).join('');input.value=selected;}
 function previewBankVendor(){const name=document.getElementById('bankVendor').value,date=document.getElementById('bankDate').value||document.getElementById('logDate').value,id=document.getElementById('bankEditId').value,linked=document.getElementById('bankKind').value==='out'&&document.getElementById('bankCategory').value==='vendor',amount=num(document.getElementById('bankAmount').value);const debt=linked&&name?vendorBalance(name,date,id).unpaid:0;document.getElementById('bankVendorDebt').textContent=linked&&name?`未結清 ${money(debt)} · 付款後剩餘 ${money(Math.max(0,debt-amount))}`:'';}
 function validateBankVendorPayments(entries){
@@ -55,11 +56,11 @@ function validateBankVendorPayments(entries){
   if(bankVendorPaid(e.vendor,last,e.date,entries)>vendorPeriodAmount(e.vendor,last,e.date)+0.000001)throw Error('付款超過廠商未結清金額，請確認金額及後續付款');
  }
 }
-function syncBankVendorViews(){updateVendorBalances();calcDaily(true);renderDailyBank();if(document.getElementById('reconMonth').value)renderRecon();if(document.getElementById('rMonth').value)genFullReport();}
+function syncBankVendorViews(){updateVendorBalances();calcDaily(true);renderMiscExpenses();renderUnpaidMiscSettlement(document.getElementById('mMonth').value);renderDailyBank();if(document.getElementById('reconMonth').value)renderRecon();if(document.getElementById('rMonth').value)genFullReport();}
 function toggleBankFee(){const show=document.getElementById('bankKind').value!=='adjust'&&document.getElementById('bankHasFee').checked;document.getElementById('bankFeeGroup').style.display=show?'block':'none';previewBankDelta();}
 function bankFormAdjustment(value){return document.getElementById('bankAdjustMode').value==='target'?value-bankBalanceAsOf(document.getElementById('bankDate').value,document.getElementById('bankEditId').value):value;}
 function previewBankDelta(){const kind=document.getElementById('bankKind').value,value=num(document.getElementById('bankAmount').value),amount=kind==='adjust'?bankFormAdjustment(value):value,fee=kind!=='adjust'&&document.getElementById('bankHasFee').checked?num(document.getElementById('bankFee').value):0;const delta=bankDelta({kind,amount,fee});document.getElementById('bankAmountLabel').textContent=kind==='adjust'?(document.getElementById('bankAdjustMode').value==='target'?'正確銀行餘額':'修正差額（減少填負數）'):'交易金額';document.getElementById('bankAmount').min=kind==='adjust'?'':'0';document.getElementById('bankImpact').textContent=kind==='in'?`實際入帳 ${money(delta)}`:kind==='out'?`實際扣款 ${money(-delta)}`:`調整差額 ${delta>=0?'+':''}${money(delta)}`;previewBankVendor();}
-function resetBankForm(){document.getElementById('bankEditId').value='';document.getElementById('bankDate').value=document.getElementById('logDate').value;document.getElementById('bankKind').value='in';bankFormDate=document.getElementById('logDate').value;document.getElementById('bankAmount').value='';document.getElementById('bankMemo').value='';document.getElementById('bankVendor').value='';document.getElementById('bankSaveBtn').textContent='新增銀行紀錄';document.getElementById('bankCancelBtn').style.display='none';bankKindChanged();}
+function resetBankForm(){bankMiscSelected=new Set();document.getElementById('bankEditId').value='';document.getElementById('bankDate').value=document.getElementById('logDate').value;document.getElementById('bankKind').value='in';bankFormDate=document.getElementById('logDate').value;document.getElementById('bankAmount').value='';document.getElementById('bankMemo').value='';document.getElementById('bankVendor').value='';document.getElementById('bankSaveBtn').textContent='新增銀行紀錄';document.getElementById('bankCancelBtn').style.display='none';bankKindChanged();}
 function saveBankEntry(){try{
  if(!document.getElementById('bankAmount').value.trim())throw Error('請輸入金額');
  const id=document.getElementById('bankEditId').value||'bank_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),date=document.getElementById('bankDate').value,kind=document.getElementById('bankKind').value,inputAmount=bankInteger(document.getElementById('bankAmount').value),amount=kind==='adjust'?bankFormAdjustment(inputAmount):inputAmount,fee=kind!=='adjust'&&document.getElementById('bankHasFee').checked?bankInteger(document.getElementById('bankFee').value):0,category=kind==='adjust'?'general':document.getElementById('bankCategory').value,memo=document.getElementById('bankMemo').value.trim();
@@ -67,10 +68,11 @@ function saveBankEntry(){try{
  if(!bankValidDate(date))throw Error('請選擇有效日期');if(!['in','out','adjust'].includes(kind))throw Error('請選擇入帳或出帳');if((kind!=='adjust'&&amount<=0)||(kind==='adjust'&&amount===0))throw Error('請輸入有效金額');if(fee<0||(kind==='in'&&fee>amount))throw Error('請確認手續費金額');if((category==='sale'&&kind!=='in')||(category==='purchase'&&kind!=='out'))throw Error('請確認進貨／出貨類別');
  clearTimeout(scheduleDailyAutosave.timer);saveDaily(true);
  const vendor=kind==='out'&&category==='vendor'?document.getElementById('bankVendor').value:'';if(vendor&&get('vendorSettlements').some(e=>e.name===vendor&&e.date===date))throw Error('該日已勾選結清，請先取消結清再記錄廠商付款');if(category==='vendor'&&(!vendor||!get('vendors').some(v=>v.name===vendor)))throw Error('請選擇付款廠商');
- const entries=bankEntries(),index=entries.findIndex(e=>e.id===id),entry={id,date,kind,category,amount,fee,memo,...(vendor?{vendor}:{})};if(index<0)entries.push(entry);else entries[index]=entry;validateBankVendorPayments(entries);
+ const miscItems=kind==='out'&&category==='misc'?selectedBankMiscItems(date,id):[];if(category==='misc'&&(kind!=='out'||!miscItems.length))throw Error('請勾選要支付的雜支');if(miscItems.length&&amount!==miscItems.reduce((total,item)=>total+item.amount,0))throw Error('雜支金額已變動，請重新勾選');
+ const entries=bankEntries(),index=entries.findIndex(e=>e.id===id),entry={id,date,kind,category,amount,fee,memo,...(vendor?{vendor}:{}),...(miscItems.length?{miscItems}:{})};if(index<0)entries.push(entry);else entries[index]=entry;validateBankVendorPayments(entries);validateBankMiscPayments(entries);
  document.getElementById('bankMonth').value=date.slice(0,7);bankCommit(bankConfig(),entries);resetBankForm();showSaveToast(index<0?'銀行紀錄已新增':'金額已修正');
  }catch(e){showSaveToast(e.message);}}
-function editBankEntry(id){const e=bankEntries().find(e=>e.id===id);if(!e||e.deleted)return;switchTab('daily');const input=document.getElementById('logDate');if(input.value!==e.date){input.value=e.date;changeDailyDate();}document.getElementById('bankEditId').value=e.id;document.getElementById('bankDate').value=e.date;document.getElementById('bankKind').value=e.kind;bankKindChanged(false);document.getElementById('bankCategory').value=e.category;bankCategoryChanged();document.getElementById('bankVendor').value=e.vendor||'';document.getElementById('bankAdjustMode').value='delta';document.getElementById('bankAmount').value=e.amount;document.getElementById('bankFee').value=e.fee;document.getElementById('bankHasFee').checked=e.fee>0;document.getElementById('bankMemo').value=e.memo;toggleBankFee();document.getElementById('bankSaveBtn').textContent='儲存修改';document.getElementById('bankCancelBtn').style.display='flex';document.getElementById('bankEntryForm').scrollIntoView({behavior:'smooth',block:'start'});}
+function editBankEntry(id){const e=bankEntries().find(e=>e.id===id);if(!e||e.deleted)return;switchTab('daily');const input=document.getElementById('logDate');if(input.value!==e.date){input.value=e.date;changeDailyDate();}document.getElementById('bankEditId').value=e.id;document.getElementById('bankDate').value=e.date;document.getElementById('bankKind').value=e.kind;bankKindChanged(false);document.getElementById('bankCategory').value=e.category;bankCategoryChanged();document.getElementById('bankVendor').value=e.vendor||'';bankMiscSelected=new Set((e.miscItems||[]).map(item=>item.id));renderBankMiscChoices();document.getElementById('bankAdjustMode').value='delta';document.getElementById('bankAmount').value=e.amount;document.getElementById('bankFee').value=e.fee;document.getElementById('bankHasFee').checked=e.fee>0;document.getElementById('bankMemo').value=e.memo;toggleBankFee();document.getElementById('bankSaveBtn').textContent='儲存修改';document.getElementById('bankCancelBtn').style.display='flex';document.getElementById('bankEntryForm').scrollIntoView({behavior:'smooth',block:'start'});}
 function deleteBankEntry(id){const entries=bankEntries().map(e=>e.id===id?{...e,deleted:true}:e);bankCommit(bankConfig(),entries);if(document.getElementById('bankEditId').value===id)resetBankForm();showSaveToast('已刪除，可按復原');}
 function renderBank(){
  const c=bankConfig();if(!document.getElementById('bankMonth').value)document.getElementById('bankMonth').value=currentMonthValue();const summary=bankSummary(document.getElementById('bankMonth').value);
@@ -82,6 +84,44 @@ function renderBank(){
  if(!document.getElementById('bankDate').value)resetBankForm();
 }
 
-function bankRowHtml(e){return `<div class="feature-box"><div class="list-row"><b>${escapeHtml(e.date)} · ${e.kind==='adjust'?'餘額修正':e.vendor?'廠商付款：'+escapeHtml(e.vendor):e.category==='purchase'?'進貨支出':e.category==='sale'?'出貨收入':e.kind==='in'?'入帳':'出帳'}</b><b>${e.delta>=0?'+':''}${money(e.delta)}</b></div><div class="report-note">交易 ${money(e.amount)} · 手續費 ${money(e.fee)} · 餘額 ${money(e.balance)}${e.memo?' · '+escapeHtml(e.memo):''}</div><div class="recon-toolbar"><button class="btn btn-primary" data-bank-edit="${escapeHtml(e.id)}">修改</button><button class="btn btn-danger" data-bank-delete="${escapeHtml(e.id)}">刪除</button></div></div>`;}
+function bankRowHtml(e){return `<div class="feature-box"><div class="list-row"><b>${escapeHtml(e.date)} · ${e.kind==='adjust'?'餘額修正':e.vendor?'廠商付款：'+escapeHtml(e.vendor):e.category==='misc'?'雜支付款':e.category==='purchase'?'進貨支出':e.category==='sale'?'出貨收入':e.kind==='in'?'入帳':'出帳'}</b><b>${e.delta>=0?'+':''}${money(e.delta)}</b></div><div class="report-note">交易 ${money(e.amount)} · 手續費 ${money(e.fee)} · 餘額 ${money(e.balance)}${e.miscItems?.length?' · '+e.miscItems.map(item=>escapeHtml(item.name)).join('、'):''}${e.memo?' · '+escapeHtml(e.memo):''}</div><div class="recon-toolbar"><button class="btn btn-primary" data-bank-edit="${escapeHtml(e.id)}">修改</button><button class="btn btn-danger" data-bank-delete="${escapeHtml(e.id)}">刪除</button></div></div>`;}
 function renderBankRows(id,rows){const box=document.getElementById(id);box.innerHTML=rows.map(bankRowHtml).join('')||'<div class="report-note">沒有銀行紀錄</div>';box.querySelectorAll('[data-bank-edit]').forEach(b=>b.onclick=()=>editBankEntry(b.dataset.bankEdit));box.querySelectorAll('[data-bank-delete]').forEach(b=>b.onclick=()=>deleteBankEntry(b.dataset.bankDelete));}
-function renderDailyBank(syncDate=false){applyBankFeatureVisibility();const date=document.getElementById('logDate').value;if(syncDate&&bankFormDate!==date)resetBankForm();document.getElementById('dailyBankBalance').textContent=money(bankBalanceAsOf(date));const rows=bankSummary(date.slice(0,7)).rows.filter(e=>e.date===date);renderBankRows('dailyBankRows',rows);previewBankVendor();}
+function renderDailyBank(syncDate=false){applyBankFeatureVisibility();const date=document.getElementById('logDate').value;if(syncDate&&bankFormDate!==date)resetBankForm();document.getElementById('dailyBankBalance').textContent=money(bankBalanceAsOf(date));const rows=bankSummary(date.slice(0,7)).rows.filter(e=>e.date===date);renderBankRows('dailyBankRows',rows);previewBankVendor();renderBankMiscChoices();}
+
+function bankMiscPaid(id,excludeId='',entries=bankEntries()){
+ return !!id&&entries.some(e=>!e.deleted&&e.id!==excludeId&&e.kind==='out'&&(e.miscItems||[]).some(item=>item.id===id));
+}
+function bankMiscCandidates(date,excludeId=''){
+ const rows=[];
+ for(const key of Object.keys(localStorage).filter(key=>key.startsWith(KEY+'d_')).sort()){
+  const day=key.slice((KEY+'d_').length);if(!bankValidDate(day)||day>date)continue;
+  const d=JSON.parse(localStorage.getItem(key));let changed=false;
+  (d?.misc||[]).forEach((item,index)=>{
+   if(!item.id){item.id='misc_'+day+'_'+index;changed=true;}
+   if(item.unpaid&&!item.settled&&!bankMiscPaid(item.id,excludeId))rows.push({id:item.id,date:day,name:item.name,amount:bankInteger(Math.round(num(item.amount))),payer:item.payer||''});
+  });if(changed)set('d_'+day,d);
+ }
+ return rows;
+}
+function selectedBankMiscItems(date,excludeId=''){
+ const rows=bankMiscCandidates(date,excludeId),selected=rows.filter(item=>bankMiscSelected.has(item.id));
+ if(selected.length!==bankMiscSelected.size)throw Error('所選雜支已付款或已變更，請重新選擇');return selected;
+}
+function renderBankMiscChoices(){
+ const linked=document.getElementById('bankKind').value==='out'&&document.getElementById('bankCategory').value==='misc';
+ document.getElementById('bankMiscGroup').style.display=linked?'block':'none';document.getElementById('bankAmount').readOnly=linked;
+ if(!linked)return;
+ const rows=bankMiscCandidates(document.getElementById('bankDate').value,document.getElementById('bankEditId').value);
+ const available=new Set(rows.map(item=>item.id));bankMiscSelected=new Set([...bankMiscSelected].filter(id=>available.has(id)));
+ const box=document.getElementById('bankMiscChoices');box.innerHTML=rows.map(item=>`<label class="check-row"><input type="checkbox" class="bank-misc-check" value="${escapeHtml(item.id)}" ${bankMiscSelected.has(item.id)?'checked':''}>${escapeHtml(item.date)} ${escapeHtml(item.name)}${item.payer?' / '+escapeHtml(item.payer):''} · ${money(item.amount)}</label>`).join('')||'<div class="report-note">沒有未支付雜支；新增雜支時請勾選「未支付／代墊」。</div>';
+ box.querySelectorAll('.bank-misc-check').forEach(input=>input.onchange=()=>{input.checked?bankMiscSelected.add(input.value):bankMiscSelected.delete(input.value);updateBankMiscAmount(rows);});updateBankMiscAmount(rows);
+}
+function updateBankMiscAmount(rows){document.getElementById('bankAmount').value=rows.filter(item=>bankMiscSelected.has(item.id)).reduce((sum,item)=>sum+item.amount,0);previewBankDelta();}
+function validateBankMiscPayments(entries){
+ const used=new Set();for(const e of entries){if(e.deleted||!e.miscItems?.length)continue;
+  if(e.kind!=='out'||e.category!=='misc')throw Error('雜支付款類別不正確');let total=0;
+  for(const ref of e.miscItems){const item=get('d_'+ref.date).misc?.find(item=>item.id===ref.id);
+   if(used.has(ref.id)||!item||!item.unpaid||item.settled||bankInteger(Math.round(num(item.amount)))!==ref.amount||ref.date>e.date)throw Error('雜支已付款或已變更，請重新選擇');used.add(ref.id);total+=ref.amount;
+  }if(total!==e.amount)throw Error('雜支付款合計不符');
+ }
+}
