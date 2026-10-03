@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V23.17</title>
+    <title>Wazi 管理系統 V24.4</title>
     <style>
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -104,9 +104,72 @@
             body.printing-report #report { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
             body.printing-report .no-print { display: none !important; }
         }
+
+        @media(min-width:641px) {
+            #cashScaleArea:not([style*="none"]) { display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+            #cashScaleArea > .grid { display:contents; }
+            #settings .grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        }
+        /* Compact layout: keep touch targets usable while reducing empty space. */
+        .container { max-width: 980px; }
+        .card { padding: 12px; margin-bottom: 10px; }
+        .tabs { grid-template-columns: repeat(4,minmax(0,1fr)); gap:6px; }
+        .tab-btn { min-height:40px; padding:8px 4px; }
+        .form-group { margin-bottom:6px; min-width:0; }
+        .form-group label { font-size:12px; }
+        .form-group input,.form-group select,.form-group textarea { padding:7px 8px; min-height:40px; font-size:16px; }
+        .grid { gap:8px; }
+        .btn,.mode-btn { padding:9px 10px; min-height:40px; }
+        .section-title { margin:8px 0; padding:6px 8px; }
+        .card > .section-title:first-child { margin-top:0; }
+        .feature-box,.v-row { padding:8px; }
+        .stat-card { padding:8px; }
+        .date-picker-wrap { padding:6px; margin-bottom:10px; }
+        .date-picker-wrap input { min-height:32px; }
+        .test-banner { max-width:980px; margin:0 auto 8px; padding:6px 10px; border-radius:6px; background:#fff3cd; color:#664d03; text-align:center; font-size:12px; }
+        .compact-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+        .compact-heading h4 { margin:0; font-size:15px; }
+        .balance-chip { padding:6px 10px; border-radius:6px; background:#eef4ec; white-space:nowrap; font-size:13px; }
+        .balance-chip b { color:var(--primary-dark); font-size:16px; }
+        .cash-total-row { display:grid; grid-template-columns:minmax(120px,1fr) 1fr; gap:12px; align-items:center; }
+        .daily-total { text-align:right; font-size:15px; font-weight:bold; color:#764ba2; }
+        #bankEntryForm > .grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .bank-extras { display:grid; grid-template-columns:140px minmax(110px,1fr) minmax(180px,2fr); gap:8px; align-items:start; }
+        .bank-extras .check-row { padding-top:14px; font-size:13px; }
+        .bank-extras .bank-memo { grid-column:-2/-1; }
+        .compact-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .compact-actions .btn { width:auto; min-width:120px; }
+        #bankStats { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        details > summary { cursor:pointer; min-height:40px; display:flex; align-items:center; font-weight:bold; }
+        details > summary::before { content:'▸'; margin-right:7px; color:var(--primary); }
+        details[open] > summary::before { content:'▾'; }
+        @media(max-width:640px) {
+            .card { padding:10px; }
+            .tabs { grid-template-columns:repeat(4,minmax(0,1fr)); }
+            .tab-btn { font-size:12px; min-height:44px; }
+            .form-group input,.form-group select,.form-group textarea,.v-row input { min-height:44px; font-size:16px; border-radius:8px; }
+            .btn,.mode-btn { min-height:44px; }
+            .bank-extras { grid-template-columns:1fr 1fr; }
+            .bank-extras .bank-memo { grid-column:1/-1; }
+            .bank-extras .check-row { padding-top:14px; }
+        }
+        @media(max-width:380px) {
+            .grid,.stat-grid,#vDailyArea { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+            .tab-btn { font-size:11px; }
+        }
+
+        .settings-intro { margin:12px 2px; }
+        .settings-intro h3 { margin:0 0 6px; font-size:20px; }
+        .settings-intro p { color:var(--muted); font-size:13px; margin:0; line-height:1.6; }
+        .settings-section > summary { flex-wrap:wrap; gap:4px; font-size:15px; }
+        .settings-section > summary span { margin-left:auto; font-weight:normal; color:var(--muted); font-size:12px; }
+        .settings-section[open] > summary { border-bottom:1px solid var(--line); margin-bottom:10px; padding-bottom:8px; }
+        .settings-save { margin:0 0 12px; }
+        @media(max-width:640px) { .settings-section > summary span { font-size:11px; } }
     </style>
 </head>
 <body>
+
 <div class="container">
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('daily')">每日記帳</button>
@@ -114,7 +177,8 @@
         <button class="tab-btn" onclick="switchTab('report')">報表中心</button>
         <button class="tab-btn" onclick="switchTab('monthly')">月結算</button>
         <button class="tab-btn" onclick="switchTab('settings')">設定/資料</button>
-        <button class="tab-btn refresh-btn" onclick="location.reload()">🔄 重新整理</button>
+        <button class="tab-btn" id="bankTabButton" onclick="switchTab('bank')">銀行明細</button>
+        <button class="tab-btn refresh-btn" onclick="location.reload()">重新整理</button>
     </div>
 
     <div id="daily" class="tab-content active">
@@ -143,11 +207,14 @@
                 <div class="form-group" id="onlinePayGroup"><label>網路收入</label><input type="number" inputmode="decimal" id="pOnline" oninput="calcDaily()"></div>
                 <div class="form-group" id="scanPayGroup"><label>掃碼支付</label><input type="number" inputmode="decimal" id="pScan" oninput="calcDaily()"></div>
             </div>
-            <div id="paymentFeeNote" class="report-note" style="display:none"></div><button type="button" id="applyPaymentFeesBtn" class="btn btn-primary" style="display:none" onclick="applyPaymentFeesToDay()">套用目前手續費率到本日</button><div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
-            <div style="text-align:right; font-size:15px; font-weight:bold; color:#764ba2;">今日營業額: <span id="cSumDisplay">$0</span></div>
+            <div id="paymentFeeNote" class="report-note" style="display:none"></div><button type="button" id="applyPaymentFeesBtn" class="btn btn-primary" style="display:none" onclick="applyPaymentFeesToDay()">套用目前手續費率到本日</button><div id="extraPaymentArea" class="grid"></div><div id="inactivePaymentNote" class="report-note" style="display:none"></div><div class="cash-total-row"><div class="form-group"><label>今日零用金</label><input type="number" inputmode="decimal" id="dailyPetty" oninput="calcDaily()" placeholder="預設沿用上次設定"></div>
+            <div class="daily-total">今日營業額<br><span id="cSumDisplay">$0</span></div></div>
         </div>
         <h4 class="section-title">📦 廠商進貨</h4>
         <div id="vendorCashNote" class="report-note" style="display:none"></div><div id="vDailyArea" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+      <div class="card" id="bankEntryForm"><div class="compact-heading"><h4>銀行入帳／出帳</h4><div class="balance-chip">餘額 <b id="dailyBankBalance">$0</b></div></div><input type="hidden" id="bankEditId"><div class="grid"><input type="hidden" id="bankDate"><div class="form-group"><label for="bankKind">入帳／出帳</label><select id="bankKind" onchange="bankKindChanged()"><option value="in">入帳</option><option value="out">出帳</option><option value="adjust">餘額修正</option></select></div><div class="form-group" id="bankCategoryGroup"><label for="bankCategory">用途</label><select id="bankCategory" onchange="bankCategoryChanged()"></select></div><div class="form-group" id="bankVendorGroup" style="display:none"><label for="bankVendor">付款廠商</label><select id="bankVendor" onchange="previewBankVendor()"></select><div id="bankVendorDebt" class="report-note"></div></div><div class="form-group" id="bankAdjustModeGroup" style="display:none"><label for="bankAdjustMode">調整方式</label><select id="bankAdjustMode" onchange="previewBankDelta()"><option value="target">設定正確餘額</option><option value="delta">增減差額</option></select></div><div class="form-group"><label for="bankAmount" id="bankAmountLabel">交易金額</label><input type="number" step="1" id="bankAmount" oninput="previewBankDelta()"></div></div><div class="bank-extras"><label class="check-row" id="bankFeeToggle"><input type="checkbox" id="bankHasFee" onchange="toggleBankFee()">有手續費</label><div class="form-group" id="bankFeeGroup"><label for="bankFee">手續費（元）</label><input type="number" min="0" step="1" id="bankFee" oninput="previewBankDelta()"></div><div class="form-group bank-memo"><label for="bankMemo" id="bankMemoLabel">備註</label><input id="bankMemo"></div></div><div class="report-note" id="bankImpact"></div><div class="compact-actions"><button class="btn btn-success" id="bankSaveBtn" onclick="saveBankEntry()">新增銀行紀錄</button><button class="btn btn-info" id="bankCancelBtn" style="display:none" onclick="resetBankForm()">取消修改</button></div></div>
+      <details class="card" id="dailyBankDetails"><summary>本日銀行明細</summary><div id="dailyBankRows"></div><button class="btn btn-info" onclick="bankUndo()">復原上次銀行修改</button></details>
+
         <div class="card">
             <h4 style="margin:0 0 10px;">雜支</h4>
             <div class="grid">
@@ -219,23 +286,28 @@
         </div>
     </div>
 
+
+    <div id="bank" class="tab-content">
+      <div class="card"><h4 class="section-title">銀行出入帳</h4><div class="form-group"><label for="bankMonth">查看月份</label><input type="month" id="bankMonth" onchange="renderBank()"></div><div id="bankStats" class="stat-grid"></div><div class="report-note">入帳扣除手續費；出帳加上手續費。銀行紀錄與每日營業額分開，避免同一筆收入重複計算。</div><details><summary>銀行與預設手續費</summary><div class="grid"><div class="form-group"><label for="bankName">帳戶名稱</label><input id="bankName"></div><div class="form-group"><label for="bankOpening">第一筆紀錄前的餘額</label><input type="number" step="1" id="bankOpening"></div><div class="form-group"><label for="bankInFee">預設入帳手續費（元）</label><input type="number" min="0" step="1" id="bankInFee"></div><div class="form-group"><label for="bankOutFee">預設出帳手續費（元）</label><input type="number" min="0" step="1" id="bankOutFee"></div></div><button class="btn btn-success" onclick="saveBankConfig()">儲存銀行設定</button></details></div>
+
+      <div class="card"><div class="recon-toolbar"><h4 class="section-title">銀行明細</h4><button class="btn btn-info" id="bankUndoBtn" onclick="bankUndo()">復原上次修改</button></div><div id="bankRows"></div></div>
+    </div>
+
     <div id="settings" class="tab-content">
-        <div class="card">
-<h4 class="section-title">基本設定</h4><div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div><h4 class="section-title">費用功能</h4>
+        <div class="settings-intro"><h3>設定</h3><p>先選需要的功能，再展開項目調整。基本設定修改後，請按「儲存設定」。</p></div><div class="card">
+<h4 class="section-title">功能開關</h4><div class="feature-box"><label class="check-row"><input type="checkbox" id="sBankEnabled" onchange="saveBankFeatureSetting()">啟用銀行出入帳</label><div class="report-note">關閉後隱藏銀行欄位，既有紀錄仍保留。</div></div></div><details class="card settings-section" open><summary>收銀設定 <span>零用金</span></summary><div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div></details><details class="card settings-section"><summary>水電與費用 <span>電費、水費、瓦斯、公攤、稅金</span></summary>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasElectric" onchange="toggleSettingsFeatures()">有電費</label><div id="sElectricOptions"><div class="form-group"><label>記帳方式</label><select id="sElectricMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sElectricMeterOptions" class="grid"><div class="form-group"><label>電費單價</label><input type="number" id="upElec"></div><div class="form-group"><label>上次結算總110度數</label><input type="number" id="si110"></div><div class="form-group"><label>上次結算總220度數</label><input type="number" id="si220"></div></div></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasWater" onchange="toggleSettingsFeatures()">有水費</label><div id="sWaterOptions"><div class="form-group"><label>記帳方式</label><select id="sWaterMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sWaterMeterOptions" class="grid"><div class="form-group"><label>水費單價</label><input type="number" id="upWater"></div><div class="form-group"><label>上次結算水錶度數</label><input type="number" id="siw"></div></div></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasGas" onchange="toggleSettingsFeatures()">有瓦斯費</label><div id="sGasOptions"><div class="form-group"><label>記帳方式</label><select id="sGasMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sGasMeterOptions" class="grid"><div class="form-group"><label>瓦斯費單價</label><input type="number" id="upGas"></div><div class="form-group"><label>上次結算瓦斯錶度數</label><input type="number" id="sig"></div></div></div></div>
 <div class="form-group" id="sStartMonthWrap"><label>上次抄表結算月份</label><input type="month" id="sStartMonth"></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasPublic" onchange="toggleSettingsFeatures()">有公攤費</label><div id="sPublicOptions" class="form-group"><label>公攤費比例</label><input type="number" inputmode="decimal" id="sPublicRate"></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasTax" onchange="toggleSettingsFeatures()">有稅金</label><div id="sTaxOptions" class="form-group"><label>稅金比例</label><input type="number" inputmode="decimal" id="sTaxRate"></div></div>
-<h4 class="section-title">收入項目</h4>
+</details><details class="card settings-section"><summary>收入與手續費 <span>支付名稱、費率</span></summary>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowOnlinePay" onchange="toggleSettingsFeatures()">啟用網路收入</label><div id="sOnlineNameOptions" class="form-group"><label>收入名稱</label><input id="sOnlineName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sOnlineFee" oninput="savePaymentFeeSetting('pOnline',this.value)" onchange="refreshHistoricalPaymentFees()"></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sShowScanPay" onchange="toggleSettingsFeatures()">啟用掃碼支付</label><div id="sScanNameOptions" class="form-group"><label>收入名稱</label><input id="sScanName" placeholder="自行輸入名稱"><label>手續費率（%）</label><input type="number" min="0" max="100" step="0.01" inputmode="decimal" id="sScanFee" oninput="savePaymentFeeSetting('pScan',this.value)" onchange="refreshHistoricalPaymentFees()"></div></div>
 <div class="report-note">輸入交易金額，手續費另列支出。費率自動儲存。2026 年 9、10 月舊帳會補入設定費率，新紀錄自動計算。</div><div id="paymentSettings"></div><button type="button" class="btn btn-primary" onclick="addPaymentSetting()">＋ 新增收入項目</button>
-            <button class="btn btn-success" onclick="saveSettings()">💾 儲存基本設定</button>
-        </div>
-        <div class="card">
-            <h4 class="section-title">分租設定</h4>
+</details><button class="btn btn-success settings-save" onclick="saveSettings()">儲存設定</button>
+        <details class="card settings-section"><summary>分租設定 <span>租金、分表</span></summary>
             <label class="check-row"><input type="checkbox" id="sHasSublease" onchange="toggleSubleaseSettings()">有分租</label>
             <div id="subleaseSettingsFields" class="grid">
                 <div class="form-group"><label>分租名稱</label><input type="text" id="sSubleaseName" placeholder="例如：舒芙蕾"></div>
@@ -244,29 +316,25 @@
                 <div class="form-group"><label>分租分表220</label><input type="number" inputmode="decimal" id="sis220"></div>
             </div>
             <button id="saveSubleaseSettings" class="btn btn-success" onclick="saveSettings()">💾 儲存分租設定</button>
-        </div>
-        <div class="card">
-            <h4 class="section-title">自訂固定支出</h4>
+        </details>
+        <details class="card settings-section"><summary>自訂固定支出 <span>每月固定費用</span></summary>
             <div id="listFixedExpenses"></div>
             <div class="grid">
                 <div class="form-group"><label>項目名稱</label><input type="text" id="newFixedName" placeholder="例如：管理費"></div>
                 <div class="form-group"><label>預設金額</label><input type="number" inputmode="decimal" id="newFixedAmount"></div>
             </div>
             <button class="btn btn-primary" onclick="addFixedExpense()">+ 新增固定支出</button>
-        </div>
-        <div class="card">
-            <h4 class="section-title">員工</h4>
+        </details>
+        <details class="card settings-section"><summary>員工 <span>姓名、時薪</span></summary>
             <div id="listStaff"></div>
             <div class="grid">
                 <div class="form-group"><label>姓名</label><input type="text" id="newStaffName"></div>
                 <div class="form-group"><label>時薪</label><input type="number" inputmode="decimal" id="newStaffRate" value="190"></div>
             </div>
             <button class="btn btn-primary" onclick="addStaff()">+ 新增員工</button>
-            <hr>
-            <h4 class="section-title">廠商</h4>
+</details><details class="card settings-section"><summary>廠商 <span>結帳方式、付款來源</span></summary>
             <div id="listVendor"></div>
-            <div class="grid">
-                <details id="newVendorPanel"><summary>＋ 新增廠商</summary><div class="form-group"><label>廠商名稱</label><input type="text" id="newVendorName"></div><div class="form-group"><label>結帳方式</label><select id="newVendorCycle"><option value="period">累積結帳</option><option value="daily">日結</option></select></div><div class="form-group"><label>付款來源</label><select id="newVendorSource"><option value="bank">帳戶付款</option><option value="cash">收銀現金</option></select></div>
+            <details id="newVendorPanel"><summary>＋ 新增廠商</summary><div class="grid"><div class="form-group"><label>廠商名稱</label><input type="text" id="newVendorName"></div><div class="form-group"><label>結帳方式</label><select id="newVendorCycle"><option value="period">累積結帳</option><option value="daily">日結</option></select></div><div class="form-group"><label>付款來源</label><select id="newVendorSource"><option value="bank">帳戶付款</option><option value="cash">收銀現金</option></select></div>
                 <div class="form-group"><label>模式</label><select id="newVendorType" onchange="toggleVendorItemFields()"><option value="金額">金額</option><option value="品項">品項</option></select></div>
             </div>
             <div id="vendorItemsFields" class="form-group" style="display:none;">
@@ -274,14 +342,14 @@
                 <textarea id="newVendorItems" placeholder="吐司,35&#10;漢堡,65"></textarea>
             </div>
             <button class="btn btn-primary" onclick="addVendor()">儲存廠商</button></details>
-        </div>
-        <h4 class="section-title">🛠 數據維護</h4>
+        </details>
+        <details class="card settings-section"><summary>備份與維護 <span>匯入、備份、清空資料</span></summary>
         <div class="grid" style="grid-template-columns: 1fr 1fr;">
             <button class="btn btn-primary" onclick="backupData()">📥 備份數據</button>
             <button class="btn btn-info" onclick="document.getElementById('importFile').click()">📤 匯入數據</button>
             <input type="file" id="importFile" style="display:none" onchange="importData(event)" accept=".json">
             <button class="btn btn-danger" onclick="clearAllData()" style="grid-column: span 2;">⚠️ 清空所有資料</button>
-        </div>
+        </div></details>
     </div>
 </div>
 <div id="saveToast" class="save-toast">已儲存</div>
@@ -494,6 +562,7 @@ function getSouffleExpenseRows(m, c){
 }
 
 function switchTab(id){
+    if(id==='bank' && typeof bankFeatureEnabled==='function' && !bankFeatureEnabled()) return;
     if(document.getElementById('daily').classList.contains('active')&&id!=='daily'){clearTimeout(scheduleDailyAutosave.timer);saveDaily(true);}
     if(id==='recon')renderRecon();
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -504,6 +573,7 @@ function switchTab(id){
     if(id==='report') genFullReport();
     if(id==='monthly') loadMonthly();
     if(id==='settings') renderSettings();
+    if(id==='bank') renderBank();
 }
 
 
@@ -1047,15 +1117,16 @@ function vendorPeriodAmount(name,after,through,draft=null){
  for(const date of dates){if(date<=after||date>through)continue;const d=draft&&date===through?draft:JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};if(vendorRule(d,name).cycle!=='daily')total+=vendorDailyAmount(d,name);}
  return total;
 }
-function vendorBalance(name,asOf){
+function bankVendorPaid(name,after,through,entries=get('bankEntries')){return entries.filter(e=>!e.deleted&&e.kind==='out'&&e.vendor===name&&e.date>after&&e.date<=through).reduce((sum,e)=>sum+num(e.amount),0);}
+function vendorBalance(name,asOf,excludeId=''){
  const dates=get('vendorSettlements').filter(x=>x.name===name&&x.date<=asOf).map(x=>x.date).sort(),last=dates.at(-1)||'';
- return {last,unpaid:vendorPeriodAmount(name,last,asOf)};
+ const raw=vendorPeriodAmount(name,last,asOf)-bankVendorPaid(name,last,asOf,get('bankEntries').filter(e=>e.id!==excludeId));return {last,unpaid:Math.max(0,raw),credit:Math.max(0,-raw)};
 }
 function vendorCashPaid(d,date=d.date||''){
  let amount=0;for(const [name,rule] of Object.entries(d.vendorBilling||{})){if(rule.cycle==='daily'&&rule.source==='cash')amount+=vendorDailyAmount(d,name);}
  for(const entry of get('vendorSettlements').filter(x=>x.date===date&&x.source==='cash')){
   const after=get('vendorSettlements').filter(x=>x.name===entry.name&&x.date<date).map(x=>x.date).sort().at(-1)||'';
-  amount+=vendorPeriodAmount(entry.name,after,date,d);
+  amount+=Math.max(0,vendorPeriodAmount(entry.name,after,date,d)-bankVendorPaid(entry.name,after,date));
  }
  return amount;
 }
@@ -1122,7 +1193,7 @@ function loadDaily(){
         }
     });
     document.getElementById('vDailyArea').innerHTML = html; renderMiscPayers(); renderMiscExpenses(); setupNumericKeyboards();
-    isLoadingDaily = false;loadedDailyDate=date;calcDaily(true);
+    isLoadingDaily = false;loadedDailyDate=date;calcDaily(true);if(typeof renderDailyBank==='function')renderDailyBank(true);
 }
 
 function escapeHtml(value){
@@ -1255,7 +1326,7 @@ function saveDaily(isAuto = false){
     const cashMode = document.getElementById('cashDirectArea')?.style.display === 'block' ? 'direct' : 'scale';
     const old=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
     set('d_'+date, {...old,date,paymentFeeRates:dailyPaymentFeeRates(old),vendorBilling:currentVendorRules(old),c1000:document.getElementById('c1000').value, c100:document.getElementById('c100').value, w50:document.getElementById('w50').value, w10:document.getElementById('w10').value, w5:document.getElementById('w5').value, petty:document.getElementById('dailyPetty').value, cashMode:cashMode, cashDirect:document.getElementById('cashDirect').value, pOnline:document.getElementById('pOnline').value, pScan:document.getElementById('pScan').value, payments:collectExtraPayments(), paymentNames:Object.fromEntries(paymentItems().map(p=>[p.id,p.name])), vs: vs, misc: dailyMisc });
-    updateVendorBalances();
+    updateVendorBalances();if(typeof renderDailyBank==='function')renderDailyBank();
     const paid=vendorCashPaid(JSON.parse(localStorage.getItem(KEY+'d_'+date)),date);
     const note=document.getElementById('vendorCashNote');if(note){note.style.display=paid?'block':'none';note.textContent='廠商現金付款加回 '+money(paid);}
     calcDaily(true);
@@ -1508,6 +1579,7 @@ function addReconEntry(){
 }
 
 function renderSettings(){
+    if(typeof applyBankFeatureVisibility==='function') applyBankFeatureVisibility();
     const c = cfg(); const map = {upElec:'ue', upWater:'uw', upGas:'ug', sPetty:'petty', sPublicRate:'publicRate', sTaxRate:'taxRate', si110:'i110', si220:'i220', sis110:'is110', sis220:'is220', siw:'iw', sig:'ig'};
     Object.keys(map).forEach(id=> { if(document.getElementById(id)) document.getElementById(id).value = c[map[id]]||0; });
     for(const key of ['Electric','Water','Gas']) document.getElementById('s'+key+'Mode').value=c[key.toLowerCase()+'Mode']||'meter';
@@ -1585,14 +1657,17 @@ function importData(event) {
             const data = JSON.parse(e.target.result);
             if (confirm("確定要匯入備份嗎？目前的資料將會被取代！")) {
                 Object.keys(localStorage).forEach(k => { if(k.startsWith(KEY)) localStorage.removeItem(k); });
-                for (const k in data) { localStorage.setItem(k, data[k]); }
+                for (const [k,value] of Object.entries(data)) {
+                    const prefix=k.startsWith(KEY)?KEY:null;
+                    if(prefix)localStorage.setItem(KEY+k.slice(prefix.length),value);
+                }
                 location.reload();
             }
         } catch (err) { alert("匯入失敗"); }
     };
     reader.readAsText(file);
 }
-function clearAllData(){ if(confirm('⚠️ 確定清空？')){ localStorage.clear(); location.reload(); } }
+function clearAllData(){ if(confirm('⚠️ 確定清空？')){ Object.keys(localStorage).filter(k=>k.startsWith(KEY)).forEach(k=>localStorage.removeItem(k)); location.reload(); } }
 function renderFixedExpenseSettings(){
     const box = document.getElementById('listFixedExpenses');
     if(!box) return;
@@ -1707,5 +1782,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
+<script src="bank.js"></script>
 </body>
 </html>
