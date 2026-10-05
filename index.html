@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.13</title>
+    <title>Wazi 管理系統 V24.14</title>
     <style>
+body.bank-feature-off .vendor-balance,body.bank-feature-off .advance-note{display:none!important}
+
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
         .recon-toolbar button {width:auto;padding:9px;}
@@ -218,7 +220,7 @@
             <div class="grid">
                 <div class="form-group"><label>品名</label><input type="text" id="miscName" placeholder="例如：臨時用品"></div>
                 <div class="form-group"><label>金額</label><input type="number" inputmode="numeric" pattern="[0-9]*" id="miscAmount" placeholder="金額"></div>
-                <div class="form-group" id="miscFundingGroup"><label>雜支付款來源</label><select id="miscFundingSource"><option value="pending">尚未出帳／之後付款</option><option value="till">已付：今日收銀取款</option><option value="external">已付：另外拿現金</option></select></div><label class="check-row"><input type="checkbox" id="miscUnpaid" onchange="toggleMiscPayer()">未支付 / 代墊</label>
+                <div class="form-group" id="miscFundingGroup"><label>雜支付款來源</label><select id="miscFundingSource"><option value="pending">尚未出帳／之後付款</option><option value="till">已付：今日收銀取款</option><option value="external">已付：另外拿現金</option></select></div><label class="check-row" id="miscUnpaidToggle"><input type="checkbox" id="miscUnpaid" onchange="toggleMiscPayer()">未支付 / 代墊</label>
                 <div class="form-group" id="miscPayerWrap" style="display:none;"><label>代墊人</label><select id="miscPayer"></select></div>
             </div>
             <button class="btn btn-primary" id="miscSubmitBtn" onclick="addMiscExpense()">+ 新增雜支</button>
@@ -271,7 +273,7 @@
             </div>
             <h4 class="section-title">自訂固定支出</h4>
             <div id="mFixedArea" class="grid"></div>
-            <h4 class="section-title">未支付雜支結算</h4>
+            <h4 class="section-title" id="mUnpaidMiscTitle">未支付雜支結算</h4>
             <div id="mUnpaidMiscArea"></div>
             <h4 class="section-title">👥 薪資獎金</h4>
             <div id="mStaffArea"></div>
@@ -297,7 +299,7 @@
 
     <div id="settings" class="tab-content">
         <div class="settings-intro"><h3>設定</h3><p>先選需要的功能，再展開項目調整。基本設定修改後，請按「儲存設定」。</p></div><div class="card">
-<h4 class="section-title">功能開關</h4><div class="feature-box"><label class="check-row"><input type="checkbox" id="sBankEnabled" onchange="saveBankFeatureSetting()">啟用銀行出入帳</label><div class="report-note">關閉後隱藏銀行欄位，既有紀錄仍保留。</div></div></div><details class="card settings-section" open><summary>收銀設定 <span>零用金</span></summary><div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div></details><details class="card settings-section"><summary>水電與費用 <span>電費、水費、瓦斯、公攤、稅金</span></summary>
+<h4 class="section-title">功能開關</h4><div class="feature-box"><label class="check-row"><input type="checkbox" id="sBankEnabled" onchange="saveBankFeatureSetting()">啟用銀行出入帳</label><div class="report-note">關閉後隱藏銀行、未結清與代墊功能；既有紀錄保留。</div></div></div><details class="card settings-section" open><summary>收銀設定 <span>零用金</span></summary><div class="form-group"><label>零用金</label><input type="number" id="sPetty"></div></details><details class="card settings-section"><summary>水電與費用 <span>電費、水費、瓦斯、公攤、稅金</span></summary>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasElectric" onchange="toggleSettingsFeatures()">有電費</label><div id="sElectricOptions"><div class="form-group"><label>記帳方式</label><select id="sElectricMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sElectricMeterOptions" class="grid"><div class="form-group"><label>電費單價</label><input type="number" id="upElec"></div><div class="form-group"><label>上次結算總110度數</label><input type="number" id="si110"></div><div class="form-group"><label>上次結算總220度數</label><input type="number" id="si220"></div></div></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasWater" onchange="toggleSettingsFeatures()">有水費</label><div id="sWaterOptions"><div class="form-group"><label>記帳方式</label><select id="sWaterMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sWaterMeterOptions" class="grid"><div class="form-group"><label>水費單價</label><input type="number" id="upWater"></div><div class="form-group"><label>上次結算水錶度數</label><input type="number" id="siw"></div></div></div></div>
 <div class="feature-box"><label class="check-row"><input type="checkbox" id="sHasGas" onchange="toggleSettingsFeatures()">有瓦斯費</label><div id="sGasOptions"><div class="form-group"><label>記帳方式</label><select id="sGasMode" onchange="toggleSettingsFeatures()"><option value="meter">抄表計算</option><option value="amount">直接輸入金額</option></select></div><div id="sGasMeterOptions" class="grid"><div class="form-group"><label>瓦斯費單價</label><input type="number" id="upGas"></div><div class="form-group"><label>上次結算瓦斯錶度數</label><input type="number" id="sig"></div></div></div></div>
@@ -867,7 +869,7 @@ function genFullReport(){
                 const amt = parseFloat(item.amount)||0;
                 if(!isMiscSettled(item)) return;
                 tMisc += amt;
-                const payerNote = item.payer ? ` / 代墊：${item.payer}` : '';
+                const payerNote = item.payer ? `<span class="advance-note"> / 代墊：${escapeHtml(item.payer)}</span>` : '';
                 miscRows += `<tr><td colspan="4" style="text-align:left;">${date.slice(8)}日 ${item.name}${payerNote}</td><td>$${Math.round(amt).toLocaleString()}</td></tr>`;
             });
         }
@@ -1259,11 +1261,12 @@ function renderMiscPayers(){
 function toggleMiscPayer(){
     const unpaid = !!document.getElementById('miscUnpaid')?.checked;
     const wrap = document.getElementById('miscPayerWrap');
-    if(wrap) wrap.style.display = unpaid ? 'block' : 'none';const funding=document.getElementById('miscFundingGroup');if(funding)funding.style.display=unpaid?'none':'block';
+    const enabled=typeof bankFeatureEnabled!=='function'||bankFeatureEnabled();
+    if(wrap) wrap.style.display = unpaid&&enabled ? 'block' : 'none';const funding=document.getElementById('miscFundingGroup');if(funding)funding.style.display=unpaid?'none':'block';
 }
 function renderMiscExpenses(){
     document.getElementById('miscList').innerHTML = dailyMisc.map((item,i)=>{
-        const status = item.cashFunding==='till'?'已付：今日收銀取款（營收加回）':item.cashFunding==='external'?'已付：另外拿現金（不加回）':typeof bankMiscPaid==='function' && bankMiscPaid(item.id) ? '已付款／代墊已歸還' : item.unpaid ? (item.settled ? `帳務已結算${item.payer?' / 待歸還：'+item.payer:''}` : `未支付 / ${item.payer || '未指定'}`) : '費用已記錄／未記出帳';
+        const status = item.cashFunding==='till'?'已付：今日收銀取款（營收加回）':item.cashFunding==='external'?'已付：另外拿現金（不加回）':typeof bankFeatureEnabled==='function'&&!bankFeatureEnabled()?'已記錄':typeof bankMiscPaid==='function' && bankMiscPaid(item.id) ? '已付款／代墊已歸還' : item.unpaid ? (item.settled ? `帳務已結算${item.payer?' / 待歸還：'+item.payer:''}` : `未支付 / ${item.payer || '未指定'}`) : '費用已記錄／未記出帳';
         return `<div class="misc-row"><span>${escapeHtml(item.name)}<br><small style="color:#728078;">${escapeHtml(status)}</small></span><b>$${Math.round(item.amount||0).toLocaleString()}</b><button class="btn btn-primary" onclick="editMiscExpense(${i})">改</button><button class="btn btn-danger" onclick="deleteMiscExpense(${i})">刪</button></div>`;
     }).join('');
 }
@@ -1554,7 +1557,7 @@ function calcRecon(){
  reconRows=buildReconRows(month,names);
  document.getElementById('reconDetailArea').innerHTML=`<div class="card"><div class="recon-toolbar"><label><input type="checkbox" id="reconSelectAll" onchange="selectAllRecon(this.checked)">全選</label><b id="reconSelectedTotal">已選 0 筆 · $0</b></div><div class="recon-toolbar"><button class="btn btn-primary" onclick="editSelectedRecon()">修改</button><button class="btn btn-danger" onclick="deleteSelectedRecon()">刪除</button><button class="btn btn-info" onclick="undoReconChange()">復原</button></div><div id="reconEditHint" class="report-note" style="display:none">金額或數量修改後，按儲存。</div><button id="reconSaveEdits" class="btn btn-success" style="display:none" onclick="saveSelectedRecon()">儲存修改</button>${reconRows.map(r=>`<div class="recon-row"><input type="checkbox" class="recon-row-check" data-id="${r.id}" onchange="updateReconSelection()"><span>${r.date.slice(5)} ${escapeHtml(r.name)}<br><small>${escapeHtml(r.label)}${r.item?' · '+r.raw+' × '+money(r.price):''}</small><input type="number" class="recon-edit-value" data-id="${r.id}" value="${r.raw}" min="0" inputmode="decimal" style="display:none"></span><b>${money(r.amount)}</b></div>`).join('')||'<div class="report-note">本月沒有明細</div>'}</div>`;
  const cutoff=month+'-'+String(new Date(...[...month.split('-').map(Number),0]).getDate()).padStart(2,'0');
- document.getElementById('reconSummaryArea').innerHTML='<b>未結清（含前月）</b>'+names.map(name=>`<div class="list-row"><span>${escapeHtml(name)}</span><b>${money(vendorBalance(name,cutoff).unpaid)}</b></div>`).join('');document.getElementById('reconSummaryArea').style.display='block';
+ document.getElementById('reconSummaryArea').innerHTML='<b>未結清（含前月）</b>'+names.map(name=>`<div class="list-row"><span>${escapeHtml(name)}</span><b>${money(vendorBalance(name,cutoff).unpaid)}</b></div>`).join('');document.getElementById('reconSummaryArea').style.display=bankFeatureEnabled()?'block':'none';
  document.getElementById('reconAction').style.display='block';document.getElementById('addReconVendor').innerHTML=names.map(name=>`<option>${escapeHtml(name)}</option>`).join('');document.getElementById('addReconDate').value=month+'-01';
 }
 function selectedReconRows(){const ids=new Set(Array.from(document.querySelectorAll('.recon-row-check:checked')).map(x=>x.dataset.id));return reconRows.filter(r=>ids.has(r.id));}
@@ -1802,6 +1805,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js?v=24.13"></script>
+<script src="bank.js?v=24.14"></script>
 </body>
 </html>

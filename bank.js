@@ -1,14 +1,18 @@
 function bankFeatureEnabled(){return get('bankFeature').enabled!==false;}
 function applyBankFeatureVisibility(){
  const enabled=bankFeatureEnabled();
- for(const id of ['bankEntryForm','dailyBankDetails','bankTabButton','paymentDepositPanel']){const el=document.getElementById(id);if(el)el.style.display=enabled?'':'none';}
+ for(const id of ['bankEntryForm','dailyBankDetails','bankTabButton','paymentDepositPanel','outstandingCard','miscUnpaidToggle','mUnpaidMiscTitle','mUnpaidMiscArea']){const el=document.getElementById(id);if(el)el.style.display=enabled?'':'none';}
+ document.body?.classList?.toggle('bank-feature-off',!enabled);
+ const summary=document.getElementById('reconSummaryArea');if(summary)summary.style.display=enabled&&summary.innerHTML?'block':'none';
+ const pending=document.getElementById('miscFundingSource')?.querySelector?.('option[value="pending"]');if(pending)pending.textContent=enabled?'尚未出帳／之後付款':'只記費用';
+ if(typeof toggleMiscPayer==='function')toggleMiscPayer();
  const checkbox=document.getElementById('sBankEnabled');if(checkbox)checkbox.checked=enabled;
  const page=document.getElementById('bank');
  if(!enabled&&page?.classList?.contains('active'))switchTab('daily');
 }
 function saveBankFeatureSetting(){
  set('bankFeature',{enabled:document.getElementById('sBankEnabled').checked});
- applyBankFeatureVisibility();showSaveToast(bankFeatureEnabled()?'已開啟銀行出入帳':'已關閉銀行出入帳');
+ applyBankFeatureVisibility();if(typeof renderMiscExpenses==='function')renderMiscExpenses();showSaveToast(bankFeatureEnabled()?'已開啟銀行出入帳':'已關閉銀行出入帳');
 }
 // Independent bank cash ledger. Revenue remains in the original daily ledger.
 let bankFormDate='';
