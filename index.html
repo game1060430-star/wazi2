@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.14</title>
+    <title>Wazi 管理系統 V24.15</title>
     <style>
 body.bank-feature-off .vendor-balance,body.bank-feature-off .advance-note{display:none!important}
 
@@ -425,8 +425,21 @@ function backupBeforeCashRepair(){
  const data={};for(const name of Object.keys(localStorage)){if(name.startsWith(KEY)&&!['repairBackup','paymentFeeBackup','bankUndo','reconUndo'].some(part=>name.startsWith(KEY+part)))data[name]=localStorage.getItem(name);}
  try{localStorage.setItem(key,JSON.stringify({createdAt:new Date().toISOString(),data}));}catch(e){showSaveToast('本機備份空間不足，原帳務資料仍保留；請使用設定頁匯出備份');}
 }
+function payrollStaff(m){
+ const active=get('staff'),archived=get('staffArchive');
+ const backup=get('repairBackupV2413');let previous=[];try{previous=JSON.parse(backup.data?.[KEY+'staff']||'[]');}catch(e){}
+ const names=new Set([...active.map(s=>s.n),...Object.keys(m.staff||{}),...Object.keys(m.staffRates||{})]);
+ return [...names].map(n=>{const person=active.find(s=>s.n===n)||archived.find(s=>s.n===n)||previous.find(s=>s.n===n);const rate=m.staffRates?.[n]??person?.r;return {n,r:num(rate),retired:!active.some(s=>s.n===n),missingRate:rate==null};});
+}
+function preservePayrollHistory(){
+ for(const key of Object.keys(localStorage).filter(k=>k.startsWith(KEY+'m_'))){const m=JSON.parse(localStorage.getItem(key))||{};const rates={...(m.staffRates||{})};let changed=false;
+ for(const person of payrollStaff(m)){if(Object.prototype.hasOwnProperty.call(m.staff||{},person.n)&&rates[person.n]==null&&!person.missingRate){rates[person.n]=person.r;changed=true;}}
+ if(changed)localStorage.setItem(key,JSON.stringify({...m,staffRates:rates}));
+ }
+}
 function initApp(){
  backupBeforeCashRepair();
+ preservePayrollHistory();
     const now = new Date();
     const tzOffset = now.getTimezoneOffset() * 60000;
     const localISO = (new Date(Date.now() - tzOffset)).toISOString();
@@ -883,10 +896,10 @@ function genFullReport(){
     }).join('');
 
     let tStaff = 0;
-    const staffHtml = get('staff').map(s => {
+    const staffHtml = payrollStaff(m).map(s => {
         const h = m.staff?.[s.n]||0, b = m.bonus?.[s.n]||0, total = (h*s.r) * (1 + b/100);
         tStaff += total;
-        return `<tr><td>${s.n}</td><td>${h}h</td><td>$${s.r}</td><td>${b}%</td><td>$${Math.round(total).toLocaleString()}</td></tr>`;
+        return `<tr><td>${s.n}</td><td>${h}h</td><td>${s.missingRate?'請補時薪':'$'+s.r}</td><td>${b}%</td><td>$${Math.round(total).toLocaleString()}</td></tr>`;
     }).join('');
 
     document.getElementById('repArea').innerHTML = `
@@ -1359,7 +1372,7 @@ function loadMonthly(){
     const m = JSON.parse(localStorage.getItem(KEY+'m_'+month))||{staff:{}, bonus:{}};
     const c = cfg();
     renderMonthlyStartSummary(month, getMonthlyData(month), c);
-    document.getElementById('mStaffArea').innerHTML = get('staff').map(s=>`<div class="card"><b>${s.n}</b><div class="grid"><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${s.n}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${s.n}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
+    document.getElementById('mStaffArea').innerHTML = payrollStaff(m).map(s=>`<div class="card"><b>${escapeHtml(s.n)}${s.retired?"（離職）":""}</b>${s.missingRate?'<div class="report-note">原時薪未保存，請補填以恢復薪資計算。</div>':""}<div class="grid"><div class="form-group"><label>時薪</label><input type="number" class="ms-rate" data-n="${escapeHtml(s.n)}" value="${s.missingRate?"":s.r}" min="0"></div><div class="form-group"><label>工時</label><input type="number" class="ms-qty" data-n="${escapeHtml(s.n)}" value="${m.staff?.[s.n]||''}"></div><div class="form-group"><label>獎金%</label><input type="number" class="ms-bonus" data-n="${escapeHtml(s.n)}" value="${m.bonus?.[s.n]||''}"></div></div></div>`).join('');
     ['e110','e220','se110','se220','w','g','pub','rent','taxb'].forEach(k=>document.getElementById('m'+k).value=m[k] ?? '');
     applyMonthlyModes(m,c);
     renderMonthlyFixedExpenses(m);
@@ -1447,9 +1460,12 @@ function toggleSubleaseMonthly(c = cfg()){
     if(section) section.style.display = c.hasSublease ? 'block' : 'none';
 }
 function collectMonthlyData(){
-    const m = document.getElementById('mMonth').value, s={}, b={}, fixed={};
+    const m = document.getElementById('mMonth').value, fixed={};
     const c = cfg();
     const existingMonth = getMonthlyData(m);
+    const s={...(existingMonth.staff||{})},b={...(existingMonth.bonus||{})},staffRates={...(existingMonth.staffRates||{})};
+    payrollStaff(existingMonth).forEach(person=>{if(!person.missingRate&&staffRates[person.n]==null)staffRates[person.n]=person.r;});
+    document.querySelectorAll('.ms-rate').forEach(i=>{if(i.value!=='')staffRates[i.dataset.n]=num(i.value);});
     document.querySelectorAll('.ms-qty').forEach(i=>s[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.ms-bonus').forEach(i=>b[i.dataset.n]=parseFloat(i.value)||0);
     document.querySelectorAll('.m-fixed').forEach(i=>fixed[i.dataset.id]=parseFloat(i.value)||0);
@@ -1459,6 +1475,7 @@ function collectMonthlyData(){
         utilityAmounts:Object.fromEntries(['electric','water','gas'].map(k=>[k,num(document.getElementById('m'+k+'Amount').value)])),
         hasPublic:document.getElementById('monthly').dataset.hasPublic!=='false',
         staff:s,
+        staffRates,
         bonus:b,
         fixed:fixed,
         souffle:{
@@ -1618,7 +1635,7 @@ function renderSettings(){
     if(document.getElementById('sSubleaseName')) document.getElementById('sSubleaseName').value = c.subleaseName || '分租';
     if(document.getElementById('sSubleaseRent')) document.getElementById('sSubleaseRent').value = c.subleaseRent ?? 15000;
     renderFixedExpenseSettings();
-    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">刪</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
+    document.getElementById('listStaff').innerHTML = get('staff').map((s,i)=>`<div class="list-row"><span>${s.n} ($${s.r})</span><button class="btn btn-danger" onclick="del('staff',${i})">設為離職</button></div>`).join('') || '<div style="color:#888; padding:8px 0;">尚未新增員工</div>';
     document.getElementById('listVendor').innerHTML=get('vendors').map((v,i)=>`<div class="feature-box"><div class="list-row"><b>${escapeHtml(v.name)}</b><button class="btn btn-danger" onclick="del('vendors',${i})">刪</button></div><div class="vendor-terms"><select aria-label="${escapeHtml(v.name)}結帳方式" onchange="updateVendorTerms(${i},'cycle',this.value)"><option value="period" ${v.cycle!=='daily'?'selected':''}>累積結帳</option><option value="daily" ${v.cycle==='daily'?'selected':''}>日結</option></select><select aria-label="${escapeHtml(v.name)}付款來源" onchange="updateVendorTerms(${i},'source',this.value)"><option value="bank" ${v.source!=='cash'?'selected':''}>帳戶付款</option><option value="cash" ${v.source==='cash'?'selected':''}>收銀現金</option></select></div></div>`).join('')||'<div class="report-note">尚未新增廠商</div>';
     toggleVendorItemFields();
     toggleSettingsFeatures();
@@ -1739,6 +1756,7 @@ function refreshAfterPeopleOrVendorChange(){
     loadDaily();
     renderRecon();
     loadMonthly();
+    if(document.getElementById('rMonth')?.value)genFullReport();
 }
 function addStaff(){
     const n = document.getElementById('newStaffName').value.trim();
@@ -1746,6 +1764,7 @@ function addStaff(){
     if(!n){ alert('請輸入員工姓名'); return; }
     if(r <= 0){ alert('請輸入正確時薪'); return; }
     const s = get('staff');
+    if(s.some(person=>person.n===n)){showSaveToast('員工姓名已存在');return;}
     s.push({n:n, r:r});
     set('staff',s);
     document.getElementById('newStaffName').value = '';
@@ -1792,6 +1811,11 @@ function purgeVendorHistory(vendorName){
 }
 function del(k,i){
     const d=get(k);
+    if(k==='staff'){
+        const person=d[i];if(!person)return;
+        preservePayrollHistory();
+        set('staffArchive',[...get('staffArchive').filter(s=>s.n!==person.n),{...person,retiredAt:new Date().toISOString()}]);
+    }
     if(k === 'vendors'){
         const vendor = d[i];
         if(!vendor) return;
@@ -1805,6 +1829,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js?v=24.14"></script>
+<script src="bank.js?v=24.15"></script>
 </body>
 </html>

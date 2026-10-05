@@ -246,7 +246,7 @@ function bankFixedBills(overrides={}){
  return [...months].sort().filter(month=>/^\d{4}-\d{2}$/.test(month)).flatMap(month=>{
   const m=overrides[month]||getMonthlyData(month);
   const fixed=getFixedExpenseRows(m,cfg()).map(row=>({id:month+'_'+row.id,month,date:month+'-01',name:row.label,category:'fixed',amount:Math.round(num(row.amount))}));
-  const salary=get('staff').map(staff=>({id:month+'_salary_'+staff.n,month,date:month+'-01',name:staff.n+' 薪資',category:'salary',amount:Math.round(num(m.staff?.[staff.n])*num(staff.r)*(1+num(m.bonus?.[staff.n])/100))}));
+  const salary=payrollStaff(m).map(staff=>({id:month+'_salary_'+staff.n,month,date:month+'-01',name:staff.n+' 薪資',category:'salary',amount:Math.round(num(m.staff?.[staff.n])*num(staff.r)*(1+num(m.bonus?.[staff.n])/100))}));
   return [...fixed,...salary].filter(row=>row.amount>0);
  });
 }
