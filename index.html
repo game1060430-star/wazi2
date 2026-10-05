@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.15</title>
+    <title>Wazi 管理系統 V24.16</title>
     <style>
 body.bank-feature-off .vendor-balance,body.bank-feature-off .advance-note{display:none!important}
 
@@ -240,6 +240,7 @@ body.bank-feature-off .vendor-balance,body.bank-feature-off .advance-note{displa
             <div class="card" id="reconVendorList" style="font-size:13px;padding:10px;"></div>
             <div id="reconDetailArea" style="flex: 1;"></div>
         </div>
+        <div id="reconVendorTotals" class="card" style="display:none"></div>
         <div id="reconSummaryArea" class="card" style="display:none; background: #fffbe6;"></div>
         <div id="reconAction" class="card" style="display:none;">
             <h4 style="margin:0 0 10px">新增明細</h4><div class="grid">
@@ -1570,8 +1571,11 @@ function renderRecon(){
 }
 function calcRecon(){
  const names=Array.from(document.querySelectorAll('.recon-chk:checked')).map(x=>x.value),month=document.getElementById('reconMonth').value;
- if(!names.length){document.getElementById('reconDetailArea').innerHTML='選擇廠商';document.getElementById('reconSummaryArea').style.display='none';document.getElementById('reconAction').style.display='none';reconRows=[];return;}
+ if(!names.length){document.getElementById('reconVendorTotals').style.display='none';document.getElementById('reconDetailArea').innerHTML='選擇廠商';document.getElementById('reconSummaryArea').style.display='none';document.getElementById('reconAction').style.display='none';reconRows=[];return;}
  reconRows=buildReconRows(month,names);
+ const totals=document.getElementById('reconVendorTotals');
+ totals.innerHTML='<b>所選廠商本月進貨統計</b>'+names.map(name=>{const rows=reconRows.filter(row=>row.name===name);return `<div class="list-row"><span>${escapeHtml(name)} · ${rows.length} 筆</span><b>${money(rows.reduce((sum,row)=>sum+row.amount,0))}</b></div>`;}).join('')+`<div class="list-row"><b>合計 · ${reconRows.length} 筆</b><b>${money(reconRows.reduce((sum,row)=>sum+row.amount,0))}</b></div>`;
+ totals.style.display='block';
  document.getElementById('reconDetailArea').innerHTML=`<div class="card"><div class="recon-toolbar"><label><input type="checkbox" id="reconSelectAll" onchange="selectAllRecon(this.checked)">全選</label><b id="reconSelectedTotal">已選 0 筆 · $0</b></div><div class="recon-toolbar"><button class="btn btn-primary" onclick="editSelectedRecon()">修改</button><button class="btn btn-danger" onclick="deleteSelectedRecon()">刪除</button><button class="btn btn-info" onclick="undoReconChange()">復原</button></div><div id="reconEditHint" class="report-note" style="display:none">金額或數量修改後，按儲存。</div><button id="reconSaveEdits" class="btn btn-success" style="display:none" onclick="saveSelectedRecon()">儲存修改</button>${reconRows.map(r=>`<div class="recon-row"><input type="checkbox" class="recon-row-check" data-id="${r.id}" onchange="updateReconSelection()"><span>${r.date.slice(5)} ${escapeHtml(r.name)}<br><small>${escapeHtml(r.label)}${r.item?' · '+r.raw+' × '+money(r.price):''}</small><input type="number" class="recon-edit-value" data-id="${r.id}" value="${r.raw}" min="0" inputmode="decimal" style="display:none"></span><b>${money(r.amount)}</b></div>`).join('')||'<div class="report-note">本月沒有明細</div>'}</div>`;
  const cutoff=month+'-'+String(new Date(...[...month.split('-').map(Number),0]).getDate()).padStart(2,'0');
  document.getElementById('reconSummaryArea').innerHTML='<b>未結清（含前月）</b>'+names.map(name=>`<div class="list-row"><span>${escapeHtml(name)}</span><b>${money(vendorBalance(name,cutoff).unpaid)}</b></div>`).join('');document.getElementById('reconSummaryArea').style.display=bankFeatureEnabled()?'block':'none';
@@ -1829,6 +1833,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js?v=24.15"></script>
+<script src="bank.js?v=24.16"></script>
 </body>
 </html>
