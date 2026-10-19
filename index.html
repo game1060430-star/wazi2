@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.17</title>
+    <title>Wazi 管理系統 V24.18</title>
     <style>
 body.bank-feature-off .vendor-balance,body.bank-feature-off .advance-note{display:none!important}
 
@@ -1170,7 +1170,7 @@ function settlementHtml(name,date,d){
  if(rule.cycle==='daily')return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}" data-daily="1"><span>日結 · ${cash?'今日收銀現金已付（營收加回，銀行不扣款）':'帳戶付款'}</span></div>`;
  const b=vendorBalance(name,date),checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);
  const recorded=get('vendorSettlements').find(x=>x.name===name&&x.date===date),settledSource=recorded?.source||rule.source,label=recorded?(recorded.source==='cash'?'本日現金結清（含之前欠款）':'本日帳戶結清（含之前欠款）'):(rule.source==='cash'?'本日現金結清（含之前欠款）':'本日帳戶結清（含之前欠款）');
- return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">${label}</label><small>${settledSource==='cash'?'今日收銀已付：營收加回，銀行不扣款。':'帳戶結清：不加回今日營收；銀行出帳請在銀行付款記錄處登記。'}</small><div class="vendor-balance">未結清 <b>${money(b.unpaid)}</b></div></div>`;
+ return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">${label}</label><small>${settledSource==='cash'?'今日收銀已付：營收加回，銀行不扣款。':'帳戶已出帳：扣除銀行餘額，不加回今日營收。'}</small><div class="vendor-balance">未結清 <b>${money(b.unpaid)}</b></div></div>`;
 }
 function updateVendorBalances(){
  const date=document.getElementById('logDate').value;
@@ -1180,8 +1180,19 @@ function toggleVendorSettlement(input){
  const date=document.getElementById('logDate').value,name=input.dataset.name,checked=input.checked;
  clearTimeout(scheduleDailyAutosave.timer);if(saveDaily(true)===false){input.checked=!checked;return;}const d=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{};
  if(checked&&get('bankEntries').some(e=>!e.deleted&&e.kind==='out'&&e.vendor===name&&e.date===date)){input.checked=false;showSaveToast('此日已有銀行付款；若實際是現金，請先刪除該筆銀行付款，再勾選現金結清');return;}
- const entries=get('vendorSettlements').filter(x=>!(x.name===name&&x.date===date));const dayRecord=JSON.parse(localStorage.getItem(KEY+'d_'+date))||{},source=vendorRule({...dayRecord,vendorBilling:currentVendorRules(dayRecord)},name).source==='cash'?'cash':'bank';if(checked)entries.push({name,date,source});
- set('vendorSettlements',entries);updateVendorBalances();calcDaily();if(typeof renderDailyBank==='function')renderDailyBank();showSaveToast(checked?(source==='cash'?'已記錄現金結清，營收加回':'已記錄帳戶結清，未加回今日營收'):'已取消結清');
+ const existing=get('vendorSettlements').find(x=>x.name===name&&x.date===date),entries=get('vendorSettlements').filter(x=>!(x.name===name&&x.date===date));
+ if(!checked&&existing?.bankEntryId){const bankRows=bankEntries().filter(e=>e.id!==existing.bankEntryId);try{validateBankVendorPayments(bankRows);bankCommit(bankConfig(),bankRows,entries);}catch(e){input.checked=true;showSaveToast(e.message);return;}}
+ else if(checked){
+  const source=vendorRule({...d,vendorBilling:currentVendorRules(d)},name).source==='cash'?'cash':'bank';
+  if(source==='bank'){
+   if(!bankFeatureEnabled()){input.checked=false;showSaveToast('請先在設定開啟銀行出入帳');return;}
+   const amount=Math.round(vendorBalance(name,date).unpaid);if(amount<=0){input.checked=false;showSaveToast('此廠商目前沒有未結清金額');return;}
+   const fee=bankConfig().outFee||0,bankEntry={id:'settle_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),date,kind:'out',category:'vendor',vendor:name,amount,fee,memo:'每日記帳廠商帳戶結清',settlementId:name+'_'+date};
+   const nextSettlements=[...entries,{name,date,source,bankEntryId:bankEntry.id}],bankRows=[...bankEntries(),bankEntry];
+   try{validateBankVendorPayments(bankRows);bankCommit(bankConfig(),bankRows,nextSettlements);}catch(e){input.checked=false;showSaveToast(e.message);return;}
+  }else{entries.push({name,date,source});set('vendorSettlements',entries);updateVendorBalances();if(typeof renderDailyBank==='function')renderDailyBank();}
+ }
+ updateVendorBalances();calcDaily();if(typeof renderDailyBank==='function')renderDailyBank();showSaveToast(checked?(existing?.source==='cash'?'已記錄現金結清，營收加回':'已從銀行帳戶出帳，未加回今日營收'):'已取消結清並復原付款');
 }
 
 function changeDailyDate(){
@@ -1833,6 +1844,6 @@ function del(k,i){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js?v=24.17"></script>
+<script src="bank.js?v=24.18"></script>
 </body>
 </html>
