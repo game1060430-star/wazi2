@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wazi 管理系統 V24.20</title>
+    <title>Wazi 管理系統 V24.21</title>
     <style>
-body.bank-feature-off .vendor-balance,body.bank-feature-off .advance-note{display:none!important}
+body.bank-feature-off .advance-note{display:none!important}
 
         .recon-layout {display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;}
         .recon-toolbar {display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;}
@@ -1177,8 +1177,9 @@ function settlementHtml(name,date,d){
  const rule=vendorRule({...d,vendorBilling:currentVendorRules(d)},name),cash=rule.source==='cash';
  if(rule.cycle==='daily')return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}" data-daily="1"><span>日結 · ${cash?'今日收銀現金已付（營收加回，銀行不扣款）':'帳戶付款'}</span></div>`;
  const b=vendorBalance(name,date),checked=get('vendorSettlements').some(x=>x.name===name&&x.date===date);
- const recorded=get('vendorSettlements').find(x=>x.name===name&&x.date===date),settledSource=recorded?.source||rule.source,label=recorded?(recorded.source==='cash'?'本日現金結清（含之前欠款）':'本日帳戶結清（含之前欠款）'):(rule.source==='cash'?'本日現金結清（含之前欠款）':'本日帳戶結清（含之前欠款）');
- return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">${label}</label><small>${settledSource==='cash'?'今日收銀已付：營收加回，銀行不扣款。':'帳戶已出帳：扣除銀行餘額，不加回今日營收。'}</small><div class="vendor-balance">未結清 <b>${money(b.unpaid)}</b></div></div>`;
+ const recorded=get('vendorSettlements').find(x=>x.name===name&&x.date===date),settledSource=recorded?.source||rule.source,trackingOnly=recorded?.source==='note'||(!bankFeatureEnabled()&&settledSource==='bank'&&!recorded?.bankEntryId),label=trackingOnly?'標記已結清（未記銀行出帳）':recorded?(recorded.source==='cash'?'本日現金結清（含之前欠款）':'本日帳戶結清（含之前欠款）'):(rule.source==='cash'?'本日現金結清（含之前欠款）':'本日帳戶結清（含之前欠款）');
+ const note=trackingOnly?'只更新未結累計，不建立銀行紀錄，也不影響今日營收。':settledSource==='cash'?'今日收銀已付：營收加回，銀行不扣款。':'帳戶已出帳：扣除銀行餘額，不加回今日營收。';
+ return `<div class="settlement-info" data-settlement-name="${escapeHtml(name)}"><label class="check-row"><input type="checkbox" class="vendor-settled" data-name="${escapeHtml(name)}" ${checked?'checked':''} onchange="toggleVendorSettlement(this)">${label}</label><small>${note}</small><div class="vendor-balance">未結清 <b>${money(b.unpaid)}</b></div></div>`;
 }
 function updateVendorBalances(){
  const date=document.getElementById('logDate').value;
@@ -1190,17 +1191,19 @@ function toggleVendorSettlement(input){
  if(checked&&get('bankEntries').some(e=>!e.deleted&&e.kind==='out'&&e.vendor===name&&e.date===date)){input.checked=false;showSaveToast('此日已有銀行付款；若實際是現金，請先刪除該筆銀行付款，再勾選現金結清');return;}
  const existing=get('vendorSettlements').find(x=>x.name===name&&x.date===date),entries=get('vendorSettlements').filter(x=>!(x.name===name&&x.date===date));
  if(!checked&&existing?.bankEntryId){const bankRows=bankEntries().filter(e=>e.id!==existing.bankEntryId);try{validateBankVendorPayments(bankRows);bankCommit(bankConfig(),bankRows,entries);}catch(e){input.checked=true;showSaveToast(e.message);return;}}
+ else if(!checked){set('vendorSettlements',entries);}
  else if(checked){
   const source=vendorRule({...d,vendorBilling:currentVendorRules(d)},name).source==='cash'?'cash':'bank';
-  if(source==='bank'){
-   if(!bankFeatureEnabled()){input.checked=false;showSaveToast('請先在設定開啟銀行出入帳');return;}
+  if(source==='bank'&&!bankFeatureEnabled()){
+   entries.push({name,date,source:'note'});set('vendorSettlements',entries);updateVendorBalances();if(typeof renderDailyBank==='function')renderDailyBank();
+  }else if(source==='bank'){
    const amount=Math.round(vendorBalance(name,date).unpaid);if(amount<=0){input.checked=false;showSaveToast('此廠商目前沒有未結清金額');return;}
     const fee=bankConfig().outFee||0,bankEntry={id:'settle_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),date,kind:'out',category:'vendor',vendor:name,amount,fee,memo:fee?'每日記帳廠商帳戶結清（含出帳手續費）':'每日記帳廠商帳戶結清',settlementId:name+'_'+date};
    const nextSettlements=[...entries,{name,date,source,bankEntryId:bankEntry.id}],bankRows=[...bankEntries(),bankEntry];
    try{validateBankVendorPayments(bankRows);bankCommit(bankConfig(),bankRows,nextSettlements);}catch(e){input.checked=false;showSaveToast(e.message);return;}
   }else{entries.push({name,date,source});set('vendorSettlements',entries);updateVendorBalances();if(typeof renderDailyBank==='function')renderDailyBank();}
  }
- updateVendorBalances();calcDaily();if(typeof renderDailyBank==='function')renderDailyBank();showSaveToast(checked?(existing?.source==='cash'?'已記錄現金結清，營收加回':'已從銀行帳戶出帳，未加回今日營收'):'已取消結清並復原付款');
+ updateVendorBalances();calcDaily();if(typeof renderDailyBank==='function')renderDailyBank();showSaveToast(checked?(existing?.source==='cash'?'已記錄現金結清，營收加回':existing?.source==='note'||(!bankFeatureEnabled()&&vendorRule({...d,vendorBilling:currentVendorRules(d)},name).source!=='cash')?'已標記結清，未建立銀行紀錄':'已從銀行帳戶出帳，未加回今日營收'):'已取消結清並復原付款');
 }
 
 function changeDailyDate(){
@@ -1217,7 +1220,10 @@ function loadDaily(){
     setCashMode(d.cashMode || (d.cashDirect ? 'direct' : 'scale'));
     applyPaymentVisibility();
     dailyMisc = (d.misc || []).map((item,i)=>({...item,id:item.id||'misc_'+date+'_'+i}));
-    let html = ""; const dateVendors=get('vendors'),draft={...d,date,vs:d.vs||{}},archivedVendors=get('vendorArchive').filter(v=>vendorBalance(v.name,date,'',draft).unpaid>0||vendorDailyAmount(d,v.name)>0),vendors=[...dateVendors,...archivedVendors];
+    // Always show archived vendors in the daily ledger. Their historic invoices may
+    // exist even when a settlement marker or vendor rule is missing, so filtering
+    // by the calculated balance can hide the very rows needed to inspect the debt.
+    let html = ""; const dateVendors=get('vendors'),draft={...d,date,vs:d.vs||{}},archivedVendors=get('vendorArchive'),vendors=[...dateVendors,...archivedVendors.filter(v=>!dateVendors.some(active=>active.name===v.name))];
     vendors.forEach(v => {
         const archived=dateVendors.every(active=>active.name!==v.name);
         const archiveNote=archived?'<div class="report-note">已封存廠商 · 歷史進貨保留，可查看與結清</div>':'';
@@ -1886,6 +1892,6 @@ function archiveVendor(index){
 }
 window.addEventListener('load', initApp);
 </script>
-<script src="bank.js?v=24.20"></script>
+<script src="bank.js?v=24.21"></script>
 </body>
 </html>
